@@ -22,4 +22,6 @@ run() {
 }
 run boot     250
 run boot16k  250 --ram16k
+run print    500 --type "300:print 1+1\\n"
+run w80      700 --type "300:width 80,25\\n{WAIT60}print \"80 columns\"\\n"
 exit $fail

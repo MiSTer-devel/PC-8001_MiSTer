@@ -1,11 +1,12 @@
 // NEC PC-8001: Z80 at 4 MHz, N-BASIC ROM, 16/32 KB RAM, text screen.
 //
-// Phase 0 skeleton (TODO.md). The text screen here is a stand-in: it reads the text VRAM (F300h, 120 bytes a
-// row) straight from RAM with no attributes, where the real machine has the uPD8257 DMA copy each row into the
-// uPD3301 CRTC while holding the Z80 with BUSREQ. Phase 1 replaces it with the two chips.
+// The text screen: the uPD8257 DMA (rtl/i8257.sv) copies each row of the text VRAM into the uPD3301 CRTC
+// (rtl/pc8001_crtc.sv), holding the Z80 with BUSREQ for the bytes it reads, as CSCP models it: 5.95 CPU clocks
+// a byte (XM8's measurement on a PC-8801MA2 in its 4 MHz mode). The Z80's M1 cycles get one wait state (CSCP
+// PC88::get_m1_wait at 4 MHz).
 //
 // boot.rom (ioctl index 0): N-BASIC (24 KB) at 0000h, font.rom (2 KB) at 6000h.
-// Video: 14.318 MHz dot clock (clk_sys / 2), 896 x 260, 640 x 200 visible (MAME's numbers; HARDWARE_NOTES 4.1).
+// Video: 14.318 MHz dot clock (clk_sys / 2); the line and frame come from the CRTC's parameters.
 
 module pc8001
 (
@@ -23,7 +24,7 @@ module pc8001
 
 	output        ce_pix,
 	output  [7:0] R, G, B,
-	output reg    HSync, VSync,
+	output        HSync, VSync,
 	output        HBlank, VBlank,
 
 	output [15:0] audio,
@@ -70,6 +71,23 @@ wire  [7:0] cpu_dout;
 reg   [7:0] cpu_din;
 
 wire rom_dl = ioctl_download & (ioctl_index[5:0] == 6'd0);
+
+// M1 wait: one wait state in each opcode fetch (T80 samples WAIT_n in T2)
+reg  m1_waited = 0;
+wire wait_n = ~(~m1_n & ~mreq_n & ~m1_waited);
+always @(posedge clk_sys) begin
+	if (m1_n) m1_waited <= 0;
+	else if (ce_cpu & ~mreq_n) m1_waited <= 1;
+end
+
+// DMA bus steal: 5.95 CPU clocks for each byte the CRTC reads (1523/256)
+reg  [15:0] steal = 0;
+wire        busrq = steal >= 16'd256;
+wire        dma_adv;
+always @(posedge clk_sys) begin
+	if (cpu_reset) steal <= 0;
+	else steal <= steal + (dma_adv ? 16'd1523 : 16'd0) - ((ce_cpu & busrq) ? 16'd256 : 16'd0);
+end
 wire cpu_reset = reset | rom_dl;
 
 `ifdef VERILATOR
@@ -82,10 +100,10 @@ T80s #(.Mode(0), .T2Write(1), .IOWait(1)) cpu
 	.CLK(clk_sys),
 	.CEN(ce_cpu),
 	.OUT0(1'b0),
-	.WAIT_n(1'b1),
+	.WAIT_n(wait_n),
 	.INT_n(1'b1),
 	.NMI_n(1'b1),
-	.BUSRQ_n(1'b1),
+	.BUSRQ_n(~busrq),
 	.M1_n(m1_n),
 	.MREQ_n(mreq_n),
 	.IORQ_n(iorq_n),
@@ -118,7 +136,7 @@ end
 // font.rom, 8x8 characters, bit 7 on the left
 reg  [7:0] font[0:2047];
 reg  [7:0] font_q;
-reg [10:0] font_a;
+wire [10:0] font_a;
 wire       font_we = rom_dl & ioctl_wr & (ioctl_addr[24:11] == 14'h0C);   // 6000h-67FFh
 always @(posedge clk_sys) begin
 	if (font_we) font[ioctl_addr[10:0]] <= ioctl_dout;
@@ -129,13 +147,14 @@ end
 wire        is_ram = A[15] & (~ram16k | A[14]);
 wire        ram_we = ~mreq_n & ~wr_n & is_ram;
 wire  [7:0] ram_q, vram_q;
-reg  [14:0] vram_a;
+wire [15:0] dma_addr;
+wire        dma_ready;
 
 dpram_tdp #(.WORDS(32768), .AW(15)) ram
 (
 	.clk(clk_sys),
 	.addr_a(A[14:0]), .we_a(ram_we), .d_a(cpu_dout), .q_a(ram_q),
-	.addr_b(vram_a), .we_b(1'b0), .d_b(8'h00), .q_b(vram_q)
+	.addr_b(dma_addr[14:0]), .we_b(1'b0), .d_b(8'h00), .q_b(vram_q)
 );
 
 wire [7:0] mem_dout = A[15] ? (is_ram ? ram_q : 8'hFF) :
@@ -152,6 +171,7 @@ wire io_wr = ~iorq_n & ~wr_n & m1_n;
 reg  [7:0] port30 = 0;     // bit 0: 80 columns, 1: mono, 2: CDS, 3: motor, 5-4: 8251 rate / RS-232C
 reg        beep_on = 0;    // port 40h bit 5
 wire       vrtc;
+wire [7:0] crtc_dout, dma_dout, kbd_dout;
 
 reg old_io_wr = 0;
 always @(posedge clk_sys) begin
@@ -169,14 +189,13 @@ always @(posedge clk_sys) begin
 	end
 end
 
-// TODO (phase 1): the keyboard matrix (00h-09h), uPD3301 (50h-51h), uPD8257 (60h-68h)
 reg [7:0] io_dout;
 always @(*) begin
 	casez (A[7:0])
-	8'h0?:   io_dout = 8'hFF;                        // keyboard rows: nothing pressed
+	8'h0?:   io_dout = kbd_dout;                     // keyboard rows 00h-09h
 	8'h4?:   io_dout = {2'b00, vrtc, 5'b00000};      // 5 VRTC (4 RTC data, 3 /EXTON, 2 CMT, 1 ACK, 0 BUSY)
-	8'h5?:   io_dout = 8'h00;
-	8'h6?:   io_dout = 8'h00;
+	8'h50, 8'h51: io_dout = crtc_dout;
+	8'h6?:   io_dout = dma_dout;
 	default: io_dout = 8'hFF;
 	endcase
 end
@@ -206,62 +225,63 @@ end
 assign audio = (beep_on & beep_sq) ? 16'h2000 : 16'h0000;
 
 //----------------------------------------------------------------------------
-// Video timing: 896 x 260 dots, 640 x 200 visible
+// Keyboard, DMA, CRTC
 //----------------------------------------------------------------------------
 
-reg [9:0] hc = 0;   // dot
-reg [8:0] vc = 0;   // line
-always @(posedge clk_sys) if (ce_pix) begin
-	if (hc == 10'd895) begin
-		hc <= 0;
-		vc <= (vc == 9'd259) ? 9'd0 : vc + 1'd1;
-	end
-	else hc <= hc + 1'd1;
-	HSync <= (hc >= 10'd704) & (hc < 10'd768);
-	if (hc == 10'd704) VSync <= (vc >= 9'd224) & (vc < 9'd227);
-end
+pc8001_kbd kbd
+(
+	.clk(clk_sys),
+	.reset(reset),
+	.ps2_key(ps2_key),
+	.row(A[3:0]),
+	.data(kbd_dout)
+);
 
-assign HBlank = hc >= 10'd640;
-assign VBlank = vc >= 9'd200;
-assign vrtc = VBlank;
+i8257 dma
+(
+	.clk(clk_sys),
+	.reset(cpu_reset),
+	.io_sel(A[7:4] == 4'h6),
+	.io_a(A[3:0]),
+	.io_wr(dbg_io_wr),
+	.io_rd(dbg_io_rd),
+	.din(cpu_dout),
+	.dout(dma_dout),
+	.ch2_addr(dma_addr),
+	.ch2_ready(dma_ready),
+	.ch2_adv(dma_adv)
+);
 
-//----------------------------------------------------------------------------
-// Stand-in text screen (see the header): 80 x 25 or 40 x 25, characters only
-//----------------------------------------------------------------------------
+wire [2:0] rgb;
+pc8001_crtc crtc
+(
+	.clk(clk_sys),
+	.reset(cpu_reset),
+	.ce_pix(ce_pix),
+	.io_sel(A[7:1] == 7'h28),
+	.io_a0(A[0]),
+	.io_wr(dbg_io_wr),
+	.io_rd(dbg_io_rd),
+	.din(cpu_dout),
+	.dout(crtc_dout),
+	.w80(port30[0]),
+	.mono(port30[1]),
+	.font_a(font_a),
+	.font_q(font_q),
+	.dma_ready(dma_ready),
+	.dma_adv(dma_adv),
+	.dma_q(vram_q),
+	.vrtc(vrtc),
+	.rgb(rgb),
+	.hblank(HBlank),
+	.vblank(VBlank),
+	.hsync(HSync),
+	.vsync(VSync)
+);
 
-// Per 8-dot cur_cell (16 clocks): fetch the next cur_cell's character, then its font line. In 40 columns a cur_cell is
-// 16 dots and takes the even bytes.
-wire       w80 = port30[0];
-wire [6:0] cur_cell = w80 ? hc[9:3] : hc[9:4];               // cur_cell on this line
-wire [3:0] sub  = w80 ? {hc[2:0], ph} : hc[3:0];          // clock within the cur_cell (40 col: dot pairs)
-wire [6:0] next_cell = (w80 ? (cur_cell == 7'd111) : (cur_cell == 7'd55)) ? 7'd0 : cur_cell + 1'd1;
-wire [8:0] nline = (next_cell == 0) ? ((vc == 9'd259) ? 9'd0 : vc + 1'd1) : vc;
-wire [4:0] nrow  = nline[7:3];
-
-reg [7:0] shifter = 0, next_bits = 0;
-reg       next_vis = 0, vis = 0;
-always @(posedge clk_sys) begin
-	case (sub)
-	4'd0: vram_a <= 15'h7300 + nrow * 7'd120 + (w80 ? next_cell : {next_cell[5:0], 1'b0});
-	4'd2: font_a <= {vram_q, nline[2:0]};
-	4'd4: begin
-		next_bits <= font_q;
-		next_vis <= (w80 ? (next_cell < 7'd80) : (next_cell < 7'd40)) & (nline < 9'd200);
-	end
-	default: ;
-	endcase
-	if (ce_pix) begin
-		if (w80 ? (hc[2:0] == 3'd7) : (hc[3:0] == 4'd15)) begin
-			shifter <= next_bits;
-			vis <= next_vis;
-		end
-		else if (w80 | hc[0]) shifter <= {shifter[6:0], 1'b0};
-	end
-end
-
-wire dot = vis & shifter[7] & ~HBlank & ~VBlank;
-assign R = {8{dot}};
-assign G = {8{dot}};
-assign B = {8{dot}};
+// colour index bits: 0 blue, 1 red, 2 green
+assign B = {8{rgb[0]}};
+assign R = {8{rgb[1]}};
+assign G = {8{rgb[2]}};
 
 endmodule

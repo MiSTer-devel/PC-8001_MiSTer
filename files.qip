@@ -5,6 +5,9 @@ set_global_assignment -name VHDL_FILE rtl/T80_v350/T80_Reg.vhd
 set_global_assignment -name VHDL_FILE rtl/T80_v350/T80_MCode.vhd
 set_global_assignment -name VHDL_FILE rtl/T80_v350/T80s.vhd
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/dpram_tdp.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/i8257.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/pc8001_crtc.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/pc8001_kbd.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pc8001.sv
 set_global_assignment -name SDC_FILE PC8001.sdc
 set_global_assignment -name SYSTEMVERILOG_FILE PC8001.sv

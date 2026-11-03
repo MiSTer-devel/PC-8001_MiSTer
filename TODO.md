@@ -16,23 +16,27 @@ Working list for PLAN.md. Done items move to the readme's Status section. (Start
 - [ ] rom_store.sv / DDR3 ROM store: not needed until the mkII (boot.rom fits block RAM).
 
 ## 1. PC-8001 boots to BASIC
-- [ ] MAME frames: boot screen, 40 columns (WIDTH 40), colour (CONSOLE/COLOR), semigraphics, 20-line mode.
-- [x] Z80 + memory map: ROM 0000-5FFF, 6000-7FFF empty, RAM 16/32 KB (64 KB later). Boots to "Ver 1.1 / Ok"
-      at frame ~165 in the sim with a stand-in text renderer (rtl/pc8001.sv; no attributes, 8 lines a row).
-- [x] Ports 30h, 40h (VRTC = vertical blank, beeper), others read FFh.
-- [ ] Disk-unit check: with FCh-FFh reading FFh the ROM waits ~2.7 s (4 x 65536 tries at 01C5h-0227h) before
-      BASIC. MAME waits too (its frame 100 matches ours). Look at what a real PC-8001 with no unit reads there.
-- [ ] uPD8257 DMA: channel 2 to the CRTC, 120 bytes/row from F300h, BUSREQ holds the Z80 (TC, autoload).
-- [ ] uPD3301 CRTC: reset + 5 parameters, start display, cursor commands, status read, row buffers,
-      VRTC interrupt line, 80/40 columns, 25/20 rows, lines per char.
-- [ ] Attributes: transparent pairs (position, value), secret, blink, reverse, overline/underline,
-      semigraphics 2x4, colour BRG vs B/W mode (30h bit 1).
-- [ ] Font ROM rendering, cursor, video timing 896 x 260 (check against the datasheet; MAME's numbers).
-- [ ] Keyboard: PS/2 to matrix 00h-09h, US and JIS layouts, KANA lock, F6-F10 as shift F1-F5.
-- [x] Beeper: 40h bit 5 and 2.4 kHz, to audio out (not listened to yet).
-- [ ] Sim: boot frame matches MAME ("NEC PC-8001 BASIC Ver 1.1").
-- [ ] Sim: PRINT, LIST, a typed-in program; WIDTH 40; colour and semigraphics frames match MAME.
-- [ ] Quartus build fits and meets timing; first try on Mister 126.
+Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSCP, diffs the frames).
+- [x] Z80 + memory map: ROM 0000-5FFF, 6000-7FFF empty, RAM 16/32 KB (64 KB later). M1 wait state (CSCP).
+- [x] Ports 30h, 40h (VRTC, beeper), others read FFh.
+- [x] uPD8257 DMA (rtl/i8257.sv): registers, TC, autoload, TC stop; channel 2 feeds the CRTC. BUSREQ holds the
+      Z80 for 5.95 CPU clocks a byte (CSCP/XM8), taken per row as a burst.
+- [x] uPD3301 CRTC (rtl/pc8001_crtc.sv): commands, parameters, status; timing from the parameters; double row
+      buffer fetched one row ahead; transparent / non-transparent / no attributes; colour and B/W; semigraphics;
+      secret, blink, reverse, over/underline; cursor; 40 columns. Attribute rules from CSCP.
+- [x] Keyboard (rtl/pc8001_kbd.sv): PS/2 to the 00h-09h matrix by JIS position; KANA lock; F6-F10, Down,
+      Left, Insert with SHIFT.
+- [x] Identical to CSCP pixel for pixel: boot (40x20), PRINT, a program with LIST/RUN, WIDTH 80,25 / 80,20 /
+      40,25, COLOR in colour mode, PSET semigraphics, CHR$(0-255) in 40 and 80 columns.
+- [ ] Not compared yet: blinking (attribute and cursor phase), reverse display (start display bit 0), DMA
+      underrun, non-transparent mode, a running game's timing (BUSREQ per row vs CSCP's per line).
+- [ ] US keyboard layout option (symbols as printed), as the PC-6001 core.
+- [ ] Disk-unit check: with FCh-FFh reading FFh the ROM waits ~2.7 s before BASIC (CSCP, with an 8255
+      always present, does not). Settled by the disk unit (phase 3) or by what a bare PC-8001 reads there.
+- [ ] Read the schematic (refs/docs/incoming/pc8001re_sch_PC-8001_IO_bessatsu.pdf) for the dot clock, the
+      WAIT circuit and the DMA/BUSREQ timing.
+- [x] Quartus build: 21% ALMs, 120 RAM blocks, all clocks meet timing, no critical warnings.
+- [ ] First try on Mister 126.
 
 ## 2. Cassette
 - [ ] 8251 at 20h/21h (receive path, then transmit), motor on 30h bit 3 (check polarity: sources disagree).
