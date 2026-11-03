@@ -55,11 +55,16 @@ assign VIDEO_ARY = (!ar) ? 12'd3 : 12'd0;
 
 // OSD per ~/dev2/osd-standard.md: media on the top page, then Machine, Video and Input pages. Settings take effect
 // at the next reset (cfg); "Changes pending" shows until then.
-// Status bits: 0 reset, 1 memory, 121-122 aspect ratio.
+// Tape per ~/dev2/tape-standard.md: Tape speed and Tape overlay act at once (out of "Changes pending").
+// Status bits: 0 reset, 1 memory, 3 rewind tape, 4 tape speed, 5 tape overlay, 121-122 aspect ratio.
 `include "build_id.v"
+// Tape turbo factor: the Z80 and the deck run TURBO times as fast while the deck plays (rtl/pc8001.sv)
+localparam int TURBO = 5;
 localparam CONF_STR = {
 	"PC8001;;",
 	"-;",
+	// The whole image is loaded into the core; not remembered (F, not FC), so a core start has no tape.
+	"F1,CMTT88,Tape;",
 	"F0,ROM,Load ROM;",
 	"-;",
 	"P1,Machine;",
@@ -69,9 +74,15 @@ localparam CONF_STR = {
 	"R[0],Apply and reset;",
 
 	"P1O[1],Memory,32 KB,16 KB;",
+	"P1-;",
+	"P1O[4],Tape speed,", 8'h30 + 8'(TURBO), "x,Normal;",
+	"P1-;",
+	"P1T[3],Rewind tape;",
 
 	"P2O[122:121],Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
+	"P2O[5],Tape overlay,On,Off;",
 
+	"I,Tape ready (rewound),Tape too large (64 KB max);",
 	"v,0;",
 	"V,v",`BUILD_DATE
 };
@@ -99,6 +110,8 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 	.buttons(buttons),
 	.status(status),
 	.status_menumask({15'd0, osd_pending}),
+	.info_req(tape_info_req),
+	.info(tape_info),
 
 	.ps2_key(ps2_key),
 
@@ -136,14 +149,25 @@ assign AUDIO_R = audio;
 
 wire ce_pix, HBlank, VBlank, HSync, VSync;
 wire [7:0] R, G, B;
+wire        tape_motor, tape_loaded, tape_too_big, tape_turbo_on;
+wire [16:0] tape_position, tape_length;
 
-pc8001 pc8001
+pc8001 #(.TURBO(TURBO)) pc8001
 (
 	.clk_sys(clk_sys),
 	.reset(reset),
 	.ram16k(cfg[1]),
 
 	.ps2_key(ps2_key),
+
+	.tape_turbo(~status[4]),
+	.tape_rewind(status[3]),
+	.tape_motor(tape_motor),
+	.tape_loaded(tape_loaded),
+	.tape_too_big(tape_too_big),
+	.tape_turbo_on(tape_turbo_on),
+	.tape_position(tape_position),
+	.tape_length(tape_length),
 
 	.ioctl_download(ioctl_download),
 	.ioctl_index(ioctl_index),
@@ -162,12 +186,54 @@ pc8001 pc8001
 	.dbg_io_wr(), .dbg_io_rd(), .dbg_io_port(), .dbg_io_data()
 );
 
+// One OSD message per tape download: ready (rewound), or cut off at 64 KB
+reg       tape_info_req = 0;
+reg [7:0] tape_info = 0;
+reg       old_tape_dl = 0;
+always @(posedge clk_sys) begin
+	old_tape_dl <= ioctl_download && ioctl_index[5:0] == 6'd1;
+	tape_info_req <= 0;
+	if (old_tape_dl && !(ioctl_download && ioctl_index[5:0] == 6'd1)) begin
+		tape_info <= tape_too_big ? 8'd2 : 8'd1;
+		tape_info_req <= 1;
+	end
+end
+
+// Tape status bar while the deck plays (tape standard): bytes at about 55 a second (600 baud, 11 bits)
+wire [43:0] tape_status_word;
+wire        tape_status_req, tape_status_ack;
+
+tape_status tape_status
+(
+	.clk(clk_sys),
+	.loaded(tape_loaded),
+	.playing(tape_motor),
+	.fast(tape_turbo_on),
+	.position({15'd0, tape_position}),
+	.length({15'd0, tape_length}),
+	.hz(18'd55),
+	.hint(2'd0),
+	.status(tape_status_word),
+	.req(tape_status_req),
+	.ack(tape_status_ack)
+);
+
+tape_overlay #(.FACTOR(4'(TURBO))) tape_overlay
+(
+	.clk(clk_sys),
+	.ce_pix(ce_pix),
+	.hblank(HBlank),
+	.vblank(VBlank),
+	.enable(~status[5]),
+	.status(tape_status_word),
+	.req(tape_status_req),
+	.ack(tape_status_ack),
+	.rgb_in({R, G, B}),
+	.rgb_out({VGA_R, VGA_G, VGA_B})
+);
+
 assign CLK_VIDEO = clk_sys;
 assign CE_PIXEL = ce_pix;
-
-assign VGA_R = R;
-assign VGA_G = G;
-assign VGA_B = B;
 assign VGA_DE = ~(HBlank | VBlank);
 assign VGA_HS = HSync;
 assign VGA_VS = VSync;

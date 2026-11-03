@@ -5,7 +5,7 @@
 //   ./obj_dir_headless/Vtop --rom-dir ../refs/emulators/mame_roms/pc8001 --stop-at-frame 120 --screenshot 120
 //   ./obj_dir_headless/Vtop --stop-at-frame 60 --frame-log out/frames.csv --trace-io out/io.csv
 //
-// A frame ends when vertical blanking starts; frame 0 is the first full one after reset. Each PNG is the visible
+// A frame ends when vertical blanking starts; frame 0 starts when reset is released (as CSCP's frame 0). Each PNG is the visible
 // picture as the core outputs it, 640x200.
 
 #include <cstdio>
@@ -49,6 +49,10 @@ struct Options {
     bool        kbd_us = false;
     std::set<uint32_t> resets;            // --reset-at FRAME
     std::string wav_file;                 // --wav
+    std::string tape_file;                // --tape FILE: .cmt / .t88 through ioctl index 1 (.t88: 41h)
+    bool        tape_turbo = false;       // --tape-turbo: OSD Tape speed 5x
+    std::vector<std::string> after_motor; // --after-motor TEXT: typed 20 frames after each motor stop
+    uint32_t    tape_end_stop = 0;        // --stop-after-motor N: end when the motor has stayed off N frames
 };
 
 static void usage()
@@ -71,6 +75,10 @@ static void usage()
 "  --trace-from N         start tracing at frame N; --trace-to N stops after frame N\n"
 "  --dump-ram FILE        write the RAM (8000-FFFF, 32 KB) to FILE at the end\n"
 "  --wav FILE             record the audio output (48 kHz, 16-bit stereo WAV)\n"
+"  --tape FILE            load a .cmt / .t88 tape image (OSD Tape); --tape-turbo: OSD Tape speed 5x\n"
+"  --after-motor TEXT     type TEXT 20 frames after the tape motor stops (repeatable: one per stop, in order)\n"
+"  --stop-after-motor N   stop once the motor has stopped (after every --after-motor text) and stayed off\n"
+"                         N frames; prints a TAPE line\n"
 "fb_hash is FNV-1a 32 over the RGB888 bytes of the visible picture.\n");
 }
 
@@ -123,6 +131,10 @@ static bool parse_args(int argc, char **argv, Options &o)
         else if (a == "--dump-ram") o.dump_ram = next();
         else if (a == "--reset-at") o.resets.insert(parse_num(next()));
         else if (a == "--wav") o.wav_file = next();
+        else if (a == "--tape") o.tape_file = next();
+        else if (a == "--tape-turbo") o.tape_turbo = true;
+        else if (a == "--after-motor") o.after_motor.push_back(next());
+        else if (a == "--stop-after-motor") o.tape_end_stop = parse_num(next());
         else if (a[0] == '+') {}   // Verilator plusargs
         else { fprintf(stderr, "unknown option %s (try --help)\n", a.c_str()); return false; }
     }
@@ -142,7 +154,7 @@ private:
     uint64_t  cycle = 0, cpu_cycles = 0;
     uint32_t  frame = 0;
     int       exit_code = 0;
-    bool      started = false;            // frames are counted from the first full one after reset
+    bool      started = false;            // frame 0 starts when reset is released (the CRTC's counters start then)
     std::vector<uint8_t> fb, line;
     int       fb_w = 0, fb_h = 0;
     bool      prev_hb = false, prev_vb = false;
@@ -156,6 +168,9 @@ private:
     FILE     *fwav = nullptr;
     uint32_t  wav_samples = 0;
     double    wav_next = 0;
+    bool      prev_motor = false, done = false;
+    size_t    motor_stops = 0;
+    uint32_t  motor_off_frame = 0, motor_on_frames = 0;
     void clock();
     void end_frame();
     bool tracing() const { return started && frame >= opt.trace_from && frame <= opt.trace_to; }
@@ -274,6 +289,17 @@ void Sim::clock()
         wav_next += CLK_HZ / 48000.0;
     }
 
+    if (top->tape_motor != prev_motor) {
+        prev_motor = top->tape_motor;
+        if (!opt.quiet) fprintf(stderr, "[sim] frame %u: tape motor %s (byte %u of %u)\n", frame, prev_motor ? "on" : "off",
+                                (unsigned)top->tape_position, (unsigned)top->tape_length);
+        if (!prev_motor) {
+            if (motor_stops < opt.after_motor.size()) schedule_text(frame + 20, opt.after_motor[motor_stops]);
+            motor_stops++;
+            motor_off_frame = frame;
+        }
+    }
+
     bool m1 = top->cpu_m1_n;
     if (!m1 && prev_m1) {
         last_pc = top->cpu_addr;
@@ -296,7 +322,6 @@ void Sim::clock()
 
 void Sim::end_frame()
 {
-    if (!started) { fb.clear(); fb_h = 0; line.clear(); started = true; return; }
     uint32_t h = 2166136261u;
     for (uint8_t b : fb) { h ^= b; h *= 16777619u; }
     if (flog) fprintf(flog, "%u,%08x,%llu,%04x\n", frame, h, (unsigned long long)cpu_cycles, last_pc);
@@ -305,6 +330,9 @@ void Sim::end_frame()
         fprintf(stderr, "[sim] frame %u  %.3fs emulated  %dx%d  pc %04x  hash %08x\n",
                 frame, cycle / CLK_HZ, fb_w, fb_h, last_pc, h);
     fb.clear(); fb_h = 0; line.clear();
+    if (top->tape_motor) motor_on_frames++;
+    if (opt.tape_end_stop && motor_stops && motor_stops >= opt.after_motor.size() && !top->tape_motor &&
+        frame - motor_off_frame >= opt.tape_end_stop) done = true;
     frame++;
     auto range = ps2_schedule.equal_range(frame);
     for (auto it = range.first; it != range.second; ++it) ps2_queue.push_back(it->second);
@@ -367,18 +395,36 @@ int Sim::run()
     }
 
     top->ram16k = opt.ram16k;
+    top->tape_turbo = opt.tape_turbo;
+    top->tape_rewind = 0;
     top->reset = 1;
     top->ps2_key = 0;
     for (int i = 0; i < 16; i++) clock();
     if (!load_rom()) return 2;
     for (int i = 0; i < 16; i++) clock();
     top->reset = 0;
+    fb.clear(); fb_h = 0; line.clear(); prev_hb = prev_vb = false; started = true;
 
+    if (!opt.tape_file.empty()) {
+        std::vector<uint8_t> t;
+        if (!read_file(opt.tape_file, t)) { fprintf(stderr, "cannot read tape %s\n", opt.tape_file.c_str()); return 2; }
+        // Main puts the extension's place in the F1 list ("CMTT88") in index bits 7:6
+        std::string ext = opt.tape_file.substr(opt.tape_file.find_last_of('.') + 1);
+        for (auto &c : ext) c = (char)tolower((unsigned char)c);
+        ioctl_load(0, t, ext == "t88" ? 0x41 : 0x01);
+        if (!opt.quiet) fprintf(stderr, "[sim] tape: '%s', %zu bytes\n", opt.tape_file.c_str(), t.size());
+    }
     for (auto &t : opt.types) schedule_text(t.frame, t.text);
     auto range = ps2_schedule.equal_range(frame);
     for (auto it = range.first; it != range.second; ++it) ps2_queue.push_back(it->second);
 
-    while (frame <= opt.stop_frame && !Verilated::gotFinish()) clock();
+    while (frame <= opt.stop_frame && !done && !Verilated::gotFinish()) clock();
+    if (opt.tape_end_stop) {
+        char name[1024];
+        snprintf(name, sizeof(name), "%s/last.png", opt.out_dir.c_str());
+        printf("TAPE frames=%u motor_on_frames=%u motor_stops=%zu pos=%u len=%u\n", frame, motor_on_frames,
+               motor_stops, (unsigned)top->tape_position, (unsigned)top->tape_length);
+    }
 
     if (!opt.dump_ram.empty()) {
         FILE *fr = fopen(opt.dump_ram.c_str(), "wb");

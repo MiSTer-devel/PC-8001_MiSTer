@@ -100,7 +100,10 @@ wire       line_end = (dot == 3'd7) & ({1'b0, hc} >= ht - 1'd1);
 wire       row_end  = line_end & (lc >= R - 1'd1);
 wire       frame_end = row_end & ({1'b0, row} >= lv - 1'd1);
 
-always @(posedge clk) if (ce_pix) begin
+always @(posedge clk) if (reset) begin
+	dot <= 0; hc <= 0; lc <= 0; row <= 0;     // a frame starts at reset, as CSCP's
+end
+else if (ce_pix) begin
 	dot <= dot + 1'd1;
 	if (dot == 3'd7) hc <= line_end ? 7'd0 : hc + 1'd1;
 	if (line_end) lc <= row_end ? 5'd0 : lc + 1'd1;
@@ -304,6 +307,7 @@ always @(posedge clk) begin
 		status <= 0; rvv <= 0; imask <= 2'b11; cur_on <= 0; cur_x <= 7'h7F; cur_y <= 6'h3F;
 		cmd <= 0; pcnt <= 0;
 		fst <= F_IDLE; row_ok <= 0; frame_fail <= 0; frame_on <= 0;
+		bcnt <= 8'd2;    // the blink phase at reset matches CSCP's frame numbering (measured; arbitrary on a real machine)
 	end
 end
 

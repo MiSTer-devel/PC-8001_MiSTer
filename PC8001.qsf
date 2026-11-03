@@ -312,3 +312,6 @@ set_global_assignment -name SYSTEMVERILOG_FILE PC8001.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/i8257.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pc8001_crtc.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pc8001_kbd.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/i8251.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/pc8001_cmt.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/tape_overlay.sv

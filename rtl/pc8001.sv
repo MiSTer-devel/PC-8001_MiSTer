@@ -8,13 +8,24 @@
 // boot.rom (ioctl index 0): N-BASIC (24 KB) at 0000h, font.rom (2 KB) at 6000h.
 // Video: 14.318 MHz dot clock (clk_sys / 2); the line and frame come from the CRTC's parameters.
 
-module pc8001
+module pc8001 #(
+	parameter int TURBO = 5           // tape turbo: the Z80 and the deck run TURBO x while the motor runs
+)
 (
 	input         clk_sys,        // 28.636 MHz
 	input         reset,
 	input         ram16k,         // 16 KB at C000-FFFF instead of 32 KB at 8000-FFFF
 
 	input  [10:0] ps2_key,
+
+	input         tape_turbo,     // OSD Tape speed: TURBO x while the motor runs (taken when the motor starts)
+	input         tape_rewind,
+	output        tape_motor,
+	output        tape_loaded,
+	output        tape_too_big,
+	output        tape_turbo_on,
+	output [16:0] tape_position,
+	output [16:0] tape_length,
 
 	input         ioctl_download,
 	input   [7:0] ioctl_index,
@@ -40,7 +51,8 @@ module pc8001
 );
 
 //----------------------------------------------------------------------------
-// Clock enables: pixel 14.318 MHz, CPU 4.000 MHz (28.636364 * 40000 / 286364)
+// Clock enables: pixel 14.318 MHz (crystal 2, 14.31818 MHz), CPU 3.9936 MHz (crystal 1, 15.9744 MHz / 4;
+// PC-8001B user's manual 1.4, the parts list in PC-8001 katsuyo kenkyu; CSCP 3993624 Hz): 28.636364 * 39936 / 286364
 //----------------------------------------------------------------------------
 
 reg ph = 0;
@@ -49,13 +61,14 @@ assign ce_pix = ph;
 
 reg [18:0] cpu_acc = 0;
 reg        ce_cpu = 0;
+wire [18:0] cpu_step = tape_turbo_on ? 19'(39936 * TURBO) : 19'd39936;
 always @(posedge clk_sys) begin
-	if (cpu_acc + 19'd40000 >= 19'd286364) begin
-		cpu_acc <= cpu_acc + 19'd40000 - 19'd286364;
+	if (cpu_acc + cpu_step >= 19'd286364) begin
+		cpu_acc <= cpu_acc + cpu_step - 19'd286364;
 		ce_cpu <= 1'b1;
 	end
 	else begin
-		cpu_acc <= cpu_acc + 19'd40000;
+		cpu_acc <= cpu_acc + cpu_step;
 		ce_cpu <= 1'b0;
 	end
 end
@@ -86,6 +99,7 @@ wire        busrq = steal >= 16'd256;
 wire        dma_adv;
 always @(posedge clk_sys) begin
 	if (cpu_reset) steal <= 0;
+	else if (tape_turbo_on) steal <= 0;
 	else steal <= steal + (dma_adv ? 16'd1523 : 16'd0) - ((ce_cpu & busrq) ? 16'd256 : 16'd0);
 end
 wire cpu_reset = reset | rom_dl;
@@ -103,7 +117,7 @@ T80s #(.Mode(0), .T2Write(1), .IOWait(1)) cpu
 	.WAIT_n(wait_n),
 	.INT_n(1'b1),
 	.NMI_n(1'b1),
-	.BUSRQ_n(~busrq),
+	.BUSRQ_n(~(busrq & ~tape_turbo_on)),   // in turbo the display does not slow the Z80
 	.M1_n(m1_n),
 	.MREQ_n(mreq_n),
 	.IORQ_n(iorq_n),
@@ -171,7 +185,8 @@ wire io_wr = ~iorq_n & ~wr_n & m1_n;
 reg  [7:0] port30 = 0;     // bit 0: 80 columns, 1: mono, 2: CDS, 3: motor, 5-4: 8251 rate / RS-232C
 reg        beep_on = 0;    // port 40h bit 5
 wire       vrtc;
-wire [7:0] crtc_dout, dma_dout, kbd_dout;
+wire [7:0] crtc_dout, dma_dout, kbd_dout, usart_dout;
+wire       cmt_dcd;
 
 reg old_io_wr = 0;
 always @(posedge clk_sys) begin
@@ -193,7 +208,8 @@ reg [7:0] io_dout;
 always @(*) begin
 	casez (A[7:0])
 	8'h0?:   io_dout = kbd_dout;                     // keyboard rows 00h-09h
-	8'h4?:   io_dout = {2'b00, vrtc, 5'b00000};      // 5 VRTC (4 RTC data, 3 /EXTON, 2 CMT, 1 ACK, 0 BUSY)
+	8'h2?:   io_dout = usart_dout;                   // 8251
+	8'h4?:   io_dout = {2'b00, vrtc, 2'b00, cmt_dcd, 2'b00};   // 5 VRTC, 2 CMT carrier (4 RTC, 3 /EXTON, 1 ACK, 0 BUSY)
 	8'h50, 8'h51: io_dout = crtc_dout;
 	8'h6?:   io_dout = dma_dout;
 	default: io_dout = 8'hFF;
@@ -277,6 +293,63 @@ pc8001_crtc crtc
 	.vblank(VBlank),
 	.hsync(HSync),
 	.vsync(VSync)
+);
+
+//----------------------------------------------------------------------------
+// Cassette: 8251 and the deck
+//----------------------------------------------------------------------------
+
+wire       rx_stb;
+wire [7:0] rx_byte, usart_mode;
+i8251 usart
+(
+	.clk(clk_sys),
+	.reset(cpu_reset),
+	.io_sel(A[7:4] == 4'h2),
+	.io_a0(A[0]),
+	.io_wr(dbg_io_wr),
+	.io_rd(dbg_io_rd),
+	.din(cpu_dout),
+	.dout(usart_dout),
+	.rx_stb(rx_stb),
+	.rx_byte(rx_byte),
+	.dsr(1'b0),
+	.mode(usart_mode),
+	.command(),
+	.tx_stb(),
+	.tx_byte()
+);
+
+// The deck plays while the relay is on (30h bit 3 = 1: the ROM's MOTOR 1 / cassette-in at 0BF3h set it, 0C31h
+// clears it) and the 8251 listens to the cassette (bits 5-4 = 00 or 01; 10/11 is RS-232C). The ROM leaves the
+// relay on at idle (30h = 2Ah, RS-232C), where a real deck waits for its PLAY key; CLOAD writes 0Ah.
+assign tape_motor = port30[3] & ~port30[5];
+
+reg turbo_l = 0;
+always @(posedge clk_sys) if (~tape_motor) turbo_l <= tape_turbo;
+assign tape_turbo_on = turbo_l & tape_motor & tape_loaded;
+
+pc8001_cmt cmt
+(
+	.clk(clk_sys),
+	.reset(cpu_reset),
+	.rewind(tape_rewind),
+	.ioctl_download(ioctl_download),
+	.ioctl_index(ioctl_index),
+	.ioctl_wr(ioctl_wr),
+	.ioctl_addr(ioctl_addr),
+	.ioctl_dout(ioctl_dout),
+	.motor(tape_motor),
+	.baud1200(port30[5:4] == 2'b01),
+	.usart_mode(usart_mode),
+	.turbo(tape_turbo_on ? 4'(TURBO) : 4'd1),
+	.rx_stb(rx_stb),
+	.rx_byte(rx_byte),
+	.dcd(cmt_dcd),
+	.loaded(tape_loaded),
+	.too_big(tape_too_big),
+	.position(tape_position),
+	.length(tape_length)
 );
 
 // colour index bits: 0 blue, 1 red, 2 green

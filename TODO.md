@@ -33,17 +33,29 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
 - [ ] US keyboard layout option (symbols as printed), as the PC-6001 core.
 - [ ] Disk-unit check: with FCh-FFh reading FFh the ROM waits ~2.7 s before BASIC (CSCP, with an 8255
       always present, does not). Settled by the disk unit (phase 3) or by what a bare PC-8001 reads there.
-- [ ] Read the schematic (refs/docs/incoming/pc8001re_sch_PC-8001_IO_bessatsu.pdf) for the dot clock, the
-      WAIT circuit and the DMA/BUSREQ timing.
+- [x] Clocks: CPU 3.9936 MHz (15.9744 MHz / 4: PC-8001B manual, parts list), dot 14.31818 MHz
+      (HARDWARE_NOTES 11).
+- [ ] Schematic: work out the WAIT circuit (IC47/IC9) and the DMA/BUSREQ timing.
+- [x] Cursor and attribute blink: identical to CSCP over 121 frames (frame 0 now starts at reset).
 - [x] Quartus build: 21% ALMs, 120 RAM blocks, all clocks meet timing, no critical warnings.
 - [ ] First try on Mister 126.
 
 ## 2. Cassette
-- [ ] 8251 at 20h/21h (receive path, then transmit), motor on 30h bit 3 (check polarity: sources disagree).
-- [ ] .cmt / .t88 playback from DDR3 (PC88_MiSTer cmt_*, PC-6001 tape standard): turbo while the motor runs,
-      status overlay. .n80 direct memory load.
-- [ ] CLOAD and MON L of Galaxian, Slot Machine, Dig Dug (Year-Based .cmt).
-- [ ] CSAVE to a file (later).
+- [x] 8251 (rtl/i8251.sv): mode, command, status, receive from the deck; transmit accepted and dropped.
+- [x] Deck (rtl/pc8001_cmt.sv): .cmt / .t88 in 64 KB block RAM (F1 CMTT88), bytes at the line rate from the
+      8251 mode and 30h's baud; T88 carrier tags for their length; carrier detect (40h bit 2) as CSCP; a 1 s
+      leader for .cmt at start and at each motor restart.
+- [x] Motor: 30h bit 3 = 1 is on (ROM 0BF3h/0C31h, MOTOR 1); the ROM leaves it on at idle with RS-232C
+      selected (2Ah), so the deck plays only with bit 3 = 1 and the cassette selected (bit 5 = 0).
+- [x] Turbo 5x while the deck plays (CPU 5x, no DMA steal), Tape speed / Rewind / Tape overlay on the OSD,
+      tape status bar (rtl/tape_overlay.sv from the PC-6001 core), "Tape ready" / "too large" messages.
+- [x] CLOAD of .t88 (River Patrol, runs) and .cmt (Kumo Vader), then LIST: identical to CSCP. MON L of the
+      machine-code block after CLOAD works.
+- [ ] Tapes over 64 KB (18 images in the sets, up to 512 KB): DDR3.
+- [ ] .n80 (memory image at 8000h, start at FF3Dh with SP from FF3Eh): needs a CPU start path.
+- [ ] Next-step hint (tape standard): read the name from the tape, "TYPE CLOAD"/"MON L".
+- [ ] CSAVE to a file (8251 transmit to a .cmt).
+- [ ] More titles: Galaxian, Slot Machine, Dig Dug (Year-Based .cmt); machine-code games started from MON.
 
 ## 3. Disk unit (PC-80S31)
 - [ ] 8255 link at FCh-FFh to the sub system: Z80 + 8255 + uPD765 + disk.rom (from pc6031.sv / PC88 SUBunit).

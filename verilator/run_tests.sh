@@ -24,4 +24,7 @@ run boot     250
 run boot16k  250 --ram16k
 run print    500 --type "300:print 1+1\\n"
 run w80      700 --type "300:width 80,25\\n{WAIT60}print \"80 columns\"\\n"
+Y=../refs/software/archive_org/yearbased_pc8001_unpacked
+run tape_t88 1400 --tape-turbo --tape "$Y/1983/PC-8001/River Patrol (1983)(Micom BASIC).t88" --type '300:cload"river"\n' --type '1200:list 100-300\n'
+run tape_mon 1300 --tape-turbo --tape "$Y/1982/PC-8001/Kumo Vader (1982)(Micom BASIC).cmt" --type '300:cload"KUMO"\n' --type '800:mon\n{WAIT30}l\n'
 exit $fail
