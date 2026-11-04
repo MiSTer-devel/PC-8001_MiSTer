@@ -59,6 +59,8 @@ struct Options {
     bool        tape_turbo = false;       // --tape-turbo: OSD Tape speed 5x
     std::vector<std::string> after_motor; // --after-motor TEXT: typed 20 frames after each motor stop
     uint32_t    tape_end_stop = 0;        // --stop-after-motor N: end when the motor has stayed off N frames
+    std::string ext_rom;                  // --ext-rom FILE: expansion ROM at 6000h (OSD F2, ioctl index 2)
+    std::string printer;                  // --printer FILE: bytes sent to the printer
 };
 
 static void usage()
@@ -71,6 +73,9 @@ static void usage()
 "                         --basic FILE / --font FILE\n"
 "  --ram16k               16 KB RAM (C000-FFFF) instead of 32 KB\n"
 "  --pcg                  PCG-8100 connected\n"
+"  --kbd-us               keyboard: US symbols (OSD Keyboard = US)\n"
+"  --ext-rom FILE         expansion ROM at 6000h (OSD Expansion ROM)\n"
+"  --printer FILE         write the bytes sent to the printer to FILE\n"
 "  --type FRAME:TEXT      type TEXT from FRAME; \\n or {RETURN}, {WAITn} ...\n"
 "  --type-rate P:R        frames per key press:release (default 4:4)\n"
 "  --reset-at F           reset before frame F\n"
@@ -141,6 +146,8 @@ static bool parse_args(int argc, char **argv, Options &o)
         else if (a == "--ram16k") o.ram16k = true;
         else if (a == "--pcg") o.pcg = true;
         else if (a == "--kbd-us") o.kbd_us = true;
+        else if (a == "--ext-rom") o.ext_rom = next();
+        else if (a == "--printer") o.printer = next();
         else if (a == "--dump-ram") o.dump_ram = next();
         else if (a == "--reset-at") o.resets.insert(parse_num(next()));
         else if (a == "--wav") o.wav_file = next();
@@ -179,7 +186,7 @@ private:
     std::vector<uint8_t> fb, line;
     int       fb_w = 0, fb_h = 0;
     bool      prev_hb = false, prev_vb = false;
-    FILE     *flog = nullptr, *ftrace = nullptr, *fio = nullptr;
+    FILE     *flog = nullptr, *ftrace = nullptr, *fio = nullptr, *fprn = nullptr;
     bool      prev_m1 = true;
     uint16_t  last_pc = 0;
     std::multimap<uint32_t, Ps2Event> ps2_schedule;
@@ -359,6 +366,7 @@ void Sim::clock()
     cycle++;
     sd_service();
     if (top->cpu_ce) cpu_cycles++;
+    if (fprn && top->prn_wr) fputc(top->prn_data, fprn);
     if (top->disk_motor != prev_disk_motor) {
         prev_disk_motor = top->disk_motor;
         if (!opt.quiet) fprintf(stderr, "[sim] frame %u: disk motor %s\n", frame, prev_disk_motor ? "on" : "off");
@@ -501,6 +509,13 @@ int Sim::run()
     top->ps2_key = 0;
     for (int i = 0; i < 16; i++) clock();
     if (!load_rom()) return 2;
+    if (!opt.ext_rom.empty()) {
+        std::vector<uint8_t> e;
+        if (!read_file(opt.ext_rom, e)) { fprintf(stderr, "cannot read %s\n", opt.ext_rom.c_str()); return 2; }
+        ioctl_load(0, e, 2);
+        if (!opt.quiet) fprintf(stderr, "[sim] expansion ROM: '%s', %zu bytes\n", opt.ext_rom.c_str(), e.size());
+    }
+    if (!opt.printer.empty() && !(fprn = fopen(opt.printer.c_str(), "wb"))) { perror(opt.printer.c_str()); return 2; }
     for (int d = 0; d < 2; d++) {
         if (opt.disk_file[d].empty()) continue;
         if (!read_file(opt.disk_file[d], disks[d])) { fprintf(stderr, "cannot read disk %s\n", opt.disk_file[d].c_str()); return 2; }
@@ -551,6 +566,7 @@ int Sim::run()
     if (flog) fclose(flog);
     if (ftrace) fclose(ftrace);
     if (fio) fclose(fio);
+    if (fprn) fclose(fprn);
     if (!opt.quiet) fprintf(stderr, "[sim] done: %u frames, %.3f s emulated\n", frame, cycle / CLK_HZ);
     return exit_code;
 }

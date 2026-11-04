@@ -61,7 +61,9 @@ module top
    output        dbg_io_wr /*verilator public_flat*/,
    output        dbg_io_rd /*verilator public_flat*/,
    output [7:0]  dbg_io_port /*verilator public_flat*/,
-   output [7:0]  dbg_io_data /*verilator public_flat*/
+   output [7:0]  dbg_io_data /*verilator public_flat*/,
+   output        prn_wr,
+   output [7:0]  prn_data
 );
 
 assign ioctl_wait = 1'b0;
@@ -101,7 +103,8 @@ pc8001 pc8001
    .HBlank(VGA_HB), .VBlank(VGA_VB),
    .audio(audio),
    .cpu_addr(cpu_addr), .cpu_ce(cpu_ce), .cpu_m1_n(cpu_m1_n),
-   .dbg_io_wr(dbg_io_wr), .dbg_io_rd(dbg_io_rd), .dbg_io_port(dbg_io_port), .dbg_io_data(dbg_io_data)
+   .dbg_io_wr(dbg_io_wr), .dbg_io_rd(dbg_io_rd), .dbg_io_port(dbg_io_port), .dbg_io_data(dbg_io_data),
+   .prn_wr(prn_wr), .prn_data(prn_data)
 );
 
 // DDR3 (sys/ddr_svc's side of emu): 1 MB at the disk images' base (512 KB each), one access at a time, busy now and then and

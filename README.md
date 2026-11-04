@@ -70,12 +70,13 @@ These are not in a MAME-named set, but are inside the downloaded software sets (
 
 ## Status
 
-2026-11-03 (TODO.md): phases 0-3 and most of 4. Text screen (uPD3301 + uPD8257), keyboard (JIS positions or US
+2026-11-04 (TODO.md): phases 0-4. Text screen (uPD3301 + uPD8257), keyboard (JIS positions or US
 symbols), cassette (.cmt/.t88, turbo), the PC-80S31 disk unit (two drives, .d88 on S0/S1), PCG-8100
-(programmable characters and its 8253 sound) and the uPD1990A clock (time from the MiSTer). Every compared
+(programmable characters and its 8253 sound), the uPD1990A clock (time from the MiSTer) and an expansion ROM
+at 6000h. The printer port takes every byte (BUSY never set) and drops it; the sim can save it (--printer). Every compared
 screen is pixel-identical to CSCP (tools/cscp_suite.sh). Not yet tried on a MiSTer.
 
-OSD: Drive 1 / Drive 2 (.d88), Tape (.cmt/.t88), Load ROM (boot.rom); Machine: Memory 32/16 KB, PCG-8100,
+OSD: Drive 1 / Drive 2 (.d88), Tape (.cmt/.t88), Load ROM (boot.rom), Expansion ROM (8 KB at 6000h, resets); Machine: Memory 32/16 KB, PCG-8100,
 Keyboard JP/US, Tape speed, Rewind; Video: aspect ratio, tape overlay. Memory and PCG-8100 apply at reset.
 
 - boot.rom: `tools/make_boot_rom.sh refs/emulators/mame_roms/pc8001 rom/boot.rom` (= `cat n80v110.rom font.rom

@@ -30,7 +30,7 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       40,25, COLOR in colour mode, PSET semigraphics, CHR$(0-255) in 40 and 80 columns.
 - [ ] Not compared yet: blinking (attribute and cursor phase), reverse display (start display bit 0), DMA
       underrun, non-transparent mode, a running game's timing (BUSREQ per row vs CSCP's per line).
-- [ ] US keyboard layout option (symbols as printed), as the PC-6001 core.
+- [x] US keyboard layout option (OSD Keyboard = US, sim --kbd-us): identical to CSCP (kbdus).
 - [ ] Disk-unit check: with FCh-FFh reading FFh the ROM waits ~2.7 s before BASIC (CSCP, with an 8255
       always present, does not). Settled by the disk unit (phase 3) or by what a bare PC-8001 reads there.
 - [x] Clocks: CPU 3.9936 MHz (15.9744 MHz / 4: PC-8001B manual, parts list), dot 14.31818 MHz
@@ -71,8 +71,8 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
 - [x] N-BASIC system disk (PC-8034-2W) boots to "How many files": identical to CSCP. Block Kuzushi: boot
       the system disk, swap, MOUNT, RUN"BLOCK" plays.
 - [ ] Heiankyo Alien: find how it starts (track 0 is blank like Block Kuzushi's?).
-- [ ] Second drive (the PC-80S31 has two; upd765_lite has drive 0 only). Then compare Block Kuzushi play with
-      CSCP using drive 2 (MOUNT 2 works in CSCP).
+- [x] Second drive: Block Kuzushi from drive 2 (MOUNT 2, RUN"2:BLOCK") identical to CSCP at frames 6000 and
+      9000 (block2); earlier frames differ while loading (seek/read timing).
 - [ ] Disk swap in drive 1 then MOUNT: the sim reads the new disk; CSCP (--swap-disk) says "Bad allocation
       table" (runs/cmp/block_game). Find which is right (disk-change handling in the firmware / CSCP's swap).
 - [ ] Boot time with the unit and no disk (CSCP ~1100 frames): compare.
@@ -81,12 +81,17 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
 - [x] PCG-8100 (OSD Machine > PCG-8100, sim --pcg), as CSCP: 1 KB RAM patterns for codes 80h-FFh (a copy
       of font.rom's at load), ports 00h-02h, 8253 at 0Ch-0Fh (rtl/pit8253.sv from the SharpMZ2500 core) at
       3.9936 MHz, three 1-bit channels switched by 02h bits 3, 6, 7.
-- [ ] PCG games against CSCP (CSCP has the PCG-8100 on by default): PCG Dig Dug, PCG The Dusty World (.d88,
-      autostart), Galaxian PCG.
+- [ ] PCG games against CSCP (CSCP has the PCG-8100 on by default): PCG Dig Dug and The Dusty World (.d88,
+      autostart) draw the same PCG characters, but the attract mode is at another phase (Dig Dug's sprites a
+      few frames apart; Dusty World on another screen): load time. Galaxian PCG not tried.
 - [x] uPD1990A (rtl/upd1990a.sv, as CSCP): 10h bits 0-3 C0-C2 / DIN, 40h bit 1 STB (falling), bit 2 CLK, 40h
       read bit 4 DOUT. Time from the MiSTer RTC (the sim: 2026-11-03 12:00:00).
-- [ ] TIME$ set and read against CSCP.
-- [ ] Printer stub (40h bit 0 BUSY?), expansion ROM at 6000h from the OSD.
+- [x] TIME$ set and read: identical to CSCP (time).
+- [x] Printer: data 10h, STROBE 40h bit 0 (byte taken as it falls), BUSY 40h bit 0 never set (as CSCP's
+      PRNFILE); the bytes go nowhere on the MiSTer, sim --printer FILE saves them (LPRINT, LLIST checked).
+      40h reads bits 7, 6, 1 high as CSCP.
+- [x] Expansion ROM at 6000-7FFF from the OSD (F2, 8 KB, resets): N-BASIC calls 6002h when it starts "AB"
+      (checked with a test ROM, sim --ext-rom).
 
 ## 5. PC-8001mkII (Model option)
 - [ ] boot.rom layout per model (as the PC-6001's boot1-3.rom); mkII ROM n80_2.rom; MAME mkII frames.

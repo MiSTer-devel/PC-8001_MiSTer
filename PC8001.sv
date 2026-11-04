@@ -69,6 +69,7 @@ localparam CONF_STR = {
 	// The whole image is loaded into the core; not remembered (F, not FC), so a core start has no tape.
 	"F1,CMTT88,Tape;",
 	"F0,ROM,Load ROM;",
+	"F2,ROMBIN,Expansion ROM;",
 	"-;",
 	"P1,Machine;",
 	"P2,Video;",
@@ -163,7 +164,7 @@ pll pll
 	.outclk_0(clk_sys)
 );
 
-wire reset = RESET | status[0] | buttons[1] | (ioctl_download & ioctl_index[5:0] == 6'd0);
+wire reset = RESET | status[0] | buttons[1] | (ioctl_download & (ioctl_index[5:0] == 6'd0 || ioctl_index[5:0] == 6'd2));
 
 // The settings the machine runs with, taken from the OSD at every reset
 reg [127:0] cfg;
@@ -240,7 +241,8 @@ pc8001 #(.TURBO(TURBO)) pc8001
 	.audio(audio),
 
 	.cpu_addr(), .cpu_ce(), .cpu_m1_n(),
-	.dbg_io_wr(), .dbg_io_rd(), .dbg_io_port(), .dbg_io_data()
+	.dbg_io_wr(), .dbg_io_rd(), .dbg_io_port(), .dbg_io_data(),
+	.prn_wr(), .prn_data()
 );
 
 // One OSD message per tape download: ready (rewound), or cut off at 64 KB

@@ -77,7 +77,9 @@ module pc8001 #(
 	output        dbg_io_wr,
 	output        dbg_io_rd,
 	output  [7:0] dbg_io_port,
-	output  [7:0] dbg_io_data
+	output  [7:0] dbg_io_data,
+	output reg    prn_wr = 0,     // a byte for the printer (one clock; data in prn_data)
+	output  [7:0] prn_data
 );
 
 //----------------------------------------------------------------------------
@@ -114,6 +116,7 @@ wire  [7:0] cpu_dout;
 reg   [7:0] cpu_din;
 
 wire rom_dl = ioctl_download & (ioctl_index[5:0] == 6'd0);
+wire ext_dl = ioctl_download & (ioctl_index[5:0] == 6'd2);   // OSD Expansion ROM
 
 // Memory wait: one wait state in each memory read, opcode fetches included, none in writes (CSCP on the
 // PC-8001: mem_wait_on, PC88::get_main_wait). The T80 drives RD_n and MREQ_n low for T2 (and its waits) only,
@@ -135,7 +138,7 @@ always @(posedge clk_sys) begin
 	else if (tape_turbo_on) steal <= 0;
 	else steal <= steal + (dma_adv ? 20'd1523 : 20'd0) - ((ce_cpu & busrq) ? 20'd256 : 20'd0);
 end
-wire cpu_reset = reset | rom_dl;
+wire cpu_reset = reset | rom_dl | ext_dl;
 
 `ifdef VERILATOR
 T80s cpu
@@ -208,6 +211,21 @@ always @(posedge clk_sys) begin
 end
 wire [7:0] font_q = pcg_sel ? pcg_q : font_rq;
 
+// Expansion ROM, 6000-7FFF (8 KB, from the OSD; N-BASIC starts it at reset when it begins "AB"). Reads FFh
+// until one is loaded.
+reg  [7:0] ext_rom[0:8191];
+reg  [7:0] ext_q;
+reg        ext_ok = 0, old_ext_dl = 0;
+always @(posedge clk_sys) begin
+	old_ext_dl <= ext_dl;
+	if (ext_dl & ~old_ext_dl) ext_ok <= 0;
+	if (ext_dl & ioctl_wr & (ioctl_addr < 25'h2000)) begin
+		ext_rom[ioctl_addr[12:0]] <= ioctl_dout;
+		ext_ok <= 1;
+	end
+	ext_q <= ext_rom[A[12:0]];
+end
+
 // RAM: 32 KB at 8000-FFFF (16 KB: C000-FFFF). Port b is the display's.
 wire        is_ram = A[15] & (~ram16k | A[14]);
 wire        ram_we = ~mreq_n & ~wr_n & is_ram;
@@ -223,7 +241,7 @@ dpram_tdp #(.WORDS(32768), .AW(15)) ram
 );
 
 wire [7:0] mem_dout = A[15] ? (is_ram ? ram_q : 8'hFF) :
-                      (A[14:13] == 2'b11) ? 8'hFF :   // 6000-7FFF: expansion ROM, none
+                      (A[14:13] == 2'b11) ? (ext_ok ? ext_q : 8'hFF) :   // 6000-7FFF: expansion ROM
                       rom_q;
 
 //----------------------------------------------------------------------------
@@ -235,8 +253,8 @@ wire io_wr = ~iorq_n & ~wr_n & m1_n;
 
 reg  [7:0] port30 = 0;     // bit 0: 80 columns, 1: mono, 2: CDS, 3: motor, 5-4: 8251 rate / RS-232C
 reg        beep_on = 0;    // port 40h bit 5
-reg  [3:0] port10 = 0;     // printer data; bits 2-0 the RTC's command, bit 3 its DIN
-reg  [2:1] port40 = 0;     // bit 1 the RTC's STB (taken as it falls), bit 2 its CLK
+reg  [7:0] port10 = 0;     // printer data; bits 2-0 the RTC's command, bit 3 its DIN
+reg  [2:0] port40 = 0;     // bit 0 printer STROBE (data taken as it falls), 1 the RTC's STB (falling), 2 its CLK
 wire       rtc_dout;
 wire       vrtc;
 wire [7:0] crtc_dout, dma_dout, kbd_dout, usart_dout, disk_dout;
@@ -254,12 +272,13 @@ always @(posedge clk_sys) begin
 	end
 	else if (io_wr & ~old_io_wr) begin
 		case (A[7:4])
-		4'h1: port10 <= cpu_dout[3:0];
+		4'h1: port10 <= cpu_dout;
 		4'h3: port30 <= cpu_dout;
-		4'h4: begin beep_on <= cpu_dout[5]; port40 <= cpu_dout[2:1]; end
+		4'h4: begin beep_on <= cpu_dout[5]; port40 <= cpu_dout[2:0]; end
 		default: ;
 		endcase
 	end
+	prn_wr <= io_wr & ~old_io_wr & (A[7:4] == 4'h4) & port40[0] & ~cpu_dout[0];
 	pcg_wr <= 0;
 	if (io_wr & ~old_io_wr & pcg_on) begin
 		case (A[7:0])
@@ -281,7 +300,9 @@ always @(*) begin
 	casez (A[7:0])
 	8'h0?:   io_dout = kbd_dout;                     // keyboard rows 00h-09h
 	8'h2?:   io_dout = usart_dout;                   // 8251
-	8'h4?:   io_dout = {2'b00, vrtc, rtc_dout, 1'b0, cmt_dcd, 2'b00};   // 5 VRTC, 4 RTC DOUT, 2 CMT carrier (3 /EXTON, 1 ACK, 0 BUSY)
+	// 5 VRTC, 4 RTC DOUT, 2 CMT carrier, 0 printer BUSY (never: the printer takes every byte); 7, 6, 1 high,
+	// 3 low, as CSCP
+	8'h4?:   io_dout = {2'b11, vrtc, rtc_dout, 1'b0, cmt_dcd, 2'b10};
 	8'h50, 8'h51: io_dout = crtc_dout;
 	8'h6?:   io_dout = dma_dout;
 	8'hFC, 8'hFD, 8'hFE, 8'hFF: io_dout = disk_dout;   // the disk unit's 8255 (FFh without DISK.ROM)
@@ -297,6 +318,7 @@ always @(posedge clk_sys) old_io_rd <= io_rd;
 assign dbg_io_rd = io_rd & ~old_io_rd;
 assign dbg_io_port = A[7:0];
 assign dbg_io_data = io_wr ? cpu_dout : io_dout;
+assign prn_data = port10;
 
 //----------------------------------------------------------------------------
 // Beeper: 40h bit 5 gates 2.4 kHz (14.318 MHz / 5966)
