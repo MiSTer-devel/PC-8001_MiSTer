@@ -66,7 +66,10 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
 - [x] N-BASIC system disk (PC-8034-2W) boots to "How many files": identical to CSCP. Block Kuzushi: boot
       the system disk, swap, MOUNT, RUN"BLOCK" plays.
 - [ ] Heiankyo Alien: find how it starts (track 0 is blank like Block Kuzushi's?).
-- [ ] Second drive (the PC-80S31 has two; upd765_lite has drive 0 only).
+- [ ] Second drive (the PC-80S31 has two; upd765_lite has drive 0 only). Then compare Block Kuzushi play with
+      CSCP using drive 2 (MOUNT 2 works in CSCP).
+- [ ] Disk swap in drive 1 then MOUNT: the sim reads the new disk; CSCP (--swap-disk) says "Bad allocation
+      table" (runs/cmp/block_game). Find which is right (disk-change handling in the firmware / CSCP's swap).
 - [ ] Boot time with the unit and no disk (CSCP ~1100 frames): compare.
 
 ## 4. PC-8001 options
