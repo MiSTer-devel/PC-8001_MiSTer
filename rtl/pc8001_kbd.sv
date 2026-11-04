@@ -7,12 +7,17 @@
 // The machine has one key for up/down, one for right/left and one for DEL/INS: Down, Left and Insert press
 // SHIFT with it. F6-F8 and F10 are SHIFT + F1-F3, F5 (as on the machine). STOP: F9 or End or Pause.
 // KANA is a lock key (Caps Lock or the JP kana key toggles it). GRPH: Alt. Page Up / Page Down: pad = and ,.
+//
+// kbd_us (OSD Keyboard = US): the symbols printed on a US keyboard. A symbol key whose JIS key or shift differs
+// presses the JIS key with SHIFT as that symbol needs, while it is held (one such key at a time). Not with
+// KANA or GRPH, where the JIS positions stay.
 
 module pc8001_kbd
 (
 	input             clk,
 	input             reset,
 	input      [10:0] ps2_key,
+	input             kbd_us,
 	input       [3:0] row,
 	output reg  [7:0] data
 );
@@ -130,16 +135,57 @@ always @(*) begin
 	endcase
 end
 
+// US symbols: {valid, row, bit, SHIFT} of the JIS key for a US key and the shift held
+function automatic [8:0] us_map(input [7:0] c, input s);
+	case ({c, s})
+	{8'h1E, 1'b1}: us_map = {1'b1, 4'd2, 3'd0, 1'b0};   // @
+	{8'h36, 1'b1}: us_map = {1'b1, 4'd5, 3'd6, 1'b0};   // ^
+	{8'h3D, 1'b1}: us_map = {1'b1, 4'd6, 3'd6, 1'b1};   // &
+	{8'h3E, 1'b1}: us_map = {1'b1, 4'd7, 3'd2, 1'b1};   // *
+	{8'h46, 1'b1}: us_map = {1'b1, 4'd7, 3'd0, 1'b1};   // (
+	{8'h45, 1'b1}: us_map = {1'b1, 4'd7, 3'd1, 1'b1};   // )
+	{8'h4E, 1'b1}: us_map = {1'b1, 4'd7, 3'd7, 1'b1};   // _
+	{8'h55, 1'b0}: us_map = {1'b1, 4'd5, 3'd7, 1'b1};   // =
+	{8'h55, 1'b1}: us_map = {1'b1, 4'd7, 3'd3, 1'b1};   // +
+	{8'h54, 1'b0}: us_map = {1'b1, 4'd5, 3'd3, 1'b0};   // [
+	{8'h54, 1'b1}: us_map = {1'b1, 4'd5, 3'd3, 1'b1};   // {
+	{8'h5B, 1'b0}: us_map = {1'b1, 4'd5, 3'd5, 1'b0};   // ]
+	{8'h5B, 1'b1}: us_map = {1'b1, 4'd5, 3'd5, 1'b1};   // }
+	{8'h5D, 1'b0}: us_map = {1'b1, 4'd5, 3'd4, 1'b0};   // backslash: yen
+	{8'h5D, 1'b1}: us_map = {1'b1, 4'd5, 3'd4, 1'b1};   // |
+	{8'h4C, 1'b1}: us_map = {1'b1, 4'd7, 3'd2, 1'b0};   // :
+	{8'h52, 1'b0}: us_map = {1'b1, 4'd6, 3'd7, 1'b1};   // '
+	{8'h52, 1'b1}: us_map = {1'b1, 4'd6, 3'd2, 1'b1};   // "
+	default: us_map = 9'd0;
+	endcase
+endfunction
+
+wire       pshift = m[8][6];
+wire [8:0] us = us_map(code, pshift);
+wire       us_on = kbd_us && !ext && us[8] && !kana && !m[8][4];
+reg        ov = 0, ov_sh = 0;      // a US symbol key held: its JIS key is pressed with SHIFT = ov_sh
+reg  [7:0] ov_code;
+reg  [6:0] ov_pos;
+
 always @(posedge clk) begin
 	old_stb <= ps2_key[10];
 	if (reset) begin
 		for (i = 0; i < 10; i = i + 1) m[i] <= 8'h00;
 		kana <= 0;
 		fshift <= 0;
+		ov <= 0;
 	end
 	else if (old_stb != ps2_key[10]) begin
 		if ({ext, code} == 9'h058 || {ext, code} == 9'h013) begin
 			if (press) kana <= ~kana;   // Caps Lock / JP kana: KANA lock
+		end
+		else if (ov && !ext && code == ov_code) begin
+			if (!press) begin m[ov_pos[6:3]][ov_pos[2:0]] <= 1'b0; ov <= 0; end
+		end
+		else if (press && us_on) begin
+			if (ov) m[ov_pos[6:3]][ov_pos[2:0]] <= 1'b0;
+			m[us[7:4]][us[3:1]] <= 1'b1;
+			ov <= 1'b1; ov_sh <= us[0]; ov_code <= code; ov_pos <= us[7:1];
 		end
 		else if (hit) begin
 			m[r][b] <= press;
@@ -151,7 +197,7 @@ end
 always @(*) begin
 	data = 8'hFF;
 	if (row <= 4'd9) data = ~m[row];
-	if (row == 4'd8) data = ~(m[8] | {1'b0, fshift, kana, 5'b00000});
+	if (row == 4'd8) data = ~({m[8][7], ov ? ov_sh : (pshift | fshift), m[8][5] | kana, m[8][4:0]});
 end
 
 endmodule

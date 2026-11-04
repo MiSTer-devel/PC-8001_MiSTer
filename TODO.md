@@ -17,7 +17,7 @@ Working list for PLAN.md. Done items move to the readme's Status section. (Start
 
 ## 1. PC-8001 boots to BASIC
 Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSCP, diffs the frames).
-- [x] Z80 + memory map: ROM 0000-5FFF, 6000-7FFF empty, RAM 16/32 KB (64 KB later). M1 wait state (CSCP).
+- [x] Z80 + memory map: ROM 0000-5FFF, 6000-7FFF empty, RAM 16/32 KB (64 KB later). One wait in each memory read (CSCP: memory wait on).
 - [x] Ports 30h, 40h (VRTC, beeper), others read FFh.
 - [x] uPD8257 DMA (rtl/i8257.sv): registers, TC, autoload, TC stop; channel 2 feeds the CRTC. BUSREQ holds the
       Z80 for 5.95 CPU clocks a byte (CSCP/XM8), taken per row as a burst.
@@ -36,6 +36,9 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
 - [x] Clocks: CPU 3.9936 MHz (15.9744 MHz / 4: PC-8001B manual, parts list), dot 14.31818 MHz
       (HARDWARE_NOTES 11).
 - [ ] Schematic: work out the WAIT circuit (IC47/IC9) and the DMA/BUSREQ timing.
+- [x] CPU speed against CSCP (2026-11-03): DMA steal counter overflowed (16 bits; a row's burst is 182760),
+      so the Z80 ran 26 % fast; memory waits were M1 only (CSCP: every read). Now per-instruction clocks match
+      CSCP; a BASIC loop is 3.4 % slower than CSCP, from CSCP's steal overlapping execution (HARDWARE_NOTES 11).
 - [x] Cursor and attribute blink: identical to CSCP over 121 frames (frame 0 now starts at reset).
 - [x] Quartus build: 21% ALMs, 120 RAM blocks, all clocks meet timing, no critical warnings.
 - [ ] First try on Mister 126.
@@ -61,8 +64,10 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
 - [x] rtl/pc80s31.sv (the PC-6001 core's pc6031.sv: Z80 + disk.rom, 16 KB, uPD765, two cross-wired 8255s) at
       FCh-FFh; upd765_lite.sv, d88_media.sv (DDR3, up to 512 KB: 2D), i8255_m0.sv. disk.rom at 6800h of
       boot.rom connects the unit (tools/make_boot_rom.sh adds it when present); without it FCh-FFh read FFh.
-- [x] OSD Disk (S0, D88, written back), LED, "Disk too large" / "No disk unit" messages; sim --disk,
-      --disk-unit, --swap-disk F:FILE, --disk-out; tools/cscp_cmp.sh DISK= / SWAP=.
+- [x] OSD Drive 1 / Drive 2 (S0, S1, D88, written back), LED, "Disk too large" / "No disk unit" messages;
+      sim --disk, --disk2, --disk-unit, --swap-disk[2] F:FILE, --disk-out; tools/cscp_cmp.sh DISK=, DISK2=,
+      SWAP=, SWAP2=. Two drives: upd765_lite per-drive cylinder and seek status, two d88_media (512 KB each in
+      DDR3) sharing DDR3 through a grant.
 - [x] N-BASIC system disk (PC-8034-2W) boots to "How many files": identical to CSCP. Block Kuzushi: boot
       the system disk, swap, MOUNT, RUN"BLOCK" plays.
 - [ ] Heiankyo Alien: find how it starts (track 0 is blank like Block Kuzushi's?).
@@ -73,8 +78,15 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
 - [ ] Boot time with the unit and no disk (CSCP ~1100 frames): compare.
 
 ## 4. PC-8001 options
-- [ ] PCG-8100: programmable characters and its sound (Galaxian PCG, The Dusty World).
-- [ ] uPD1990 RTC (10h/40h), printer stub, expansion ROM at 6000h from the OSD.
+- [x] PCG-8100 (OSD Machine > PCG-8100, sim --pcg), as CSCP: 1 KB RAM patterns for codes 80h-FFh (a copy
+      of font.rom's at load), ports 00h-02h, 8253 at 0Ch-0Fh (rtl/pit8253.sv from the SharpMZ2500 core) at
+      3.9936 MHz, three 1-bit channels switched by 02h bits 3, 6, 7.
+- [ ] PCG games against CSCP (CSCP has the PCG-8100 on by default): PCG Dig Dug, PCG The Dusty World (.d88,
+      autostart), Galaxian PCG.
+- [x] uPD1990A (rtl/upd1990a.sv, as CSCP): 10h bits 0-3 C0-C2 / DIN, 40h bit 1 STB (falling), bit 2 CLK, 40h
+      read bit 4 DOUT. Time from the MiSTer RTC (the sim: 2026-11-03 12:00:00).
+- [ ] TIME$ set and read against CSCP.
+- [ ] Printer stub (40h bit 0 BUSY?), expansion ROM at 6000h from the OSD.
 
 ## 5. PC-8001mkII (Model option)
 - [ ] boot.rom layout per model (as the PC-6001's boot1-3.rom); mkII ROM n80_2.rom; MAME mkII frames.

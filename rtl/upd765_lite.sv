@@ -1,11 +1,11 @@
-// uPD765 floppy controller, the commands the PC-80S31 / PC-6031 firmware (DISK.ROM) uses, on one drive whose disk
-// is a .d88 image in DDR3 (rtl/d88_media.sv). Non-DMA mode: in the execution phase each data byte raises INT and
+// uPD765 floppy controller, the commands the PC-80S31 / PC-6031 firmware (DISK.ROM) uses, on two drives whose
+// disks are .d88 images in DDR3 (rtl/d88_media.sv; m_drv says which). Non-DMA mode: in the execution phase each data byte raises INT and
 // waits for the CPU (no overrun); TC (the firmware reads port F8h) ends a transfer at the end of the sector.
 //
 // SPECIFY, SENSE DRIVE STATUS, RECALIBRATE, SEEK, SENSE INTERRUPT STATUS, READ DATA, WRITE DATA, READ ID and
 // FORMAT A TRACK (on a track the image already has with that many sectors of that size); others are invalid.
-// MT and SK are ignored; FM is not supported. Drives 1-3 are not connected: RECALIBRATE fails with an equipment
-// check, as with no drive, so the firmware sees one drive.
+// MT and SK are ignored; FM is not supported. Drives 2 and 3 are not connected: RECALIBRATE fails with an
+// equipment check, as with no drive.
 //
 // D88: the track table at 20h holds the offset of track cylinder*2+head (the head's position, not the command's
 // C); each sector is a 16-byte header (C, H, R, N, sectors in the track, density, deleted, status, ..., data
@@ -28,14 +28,15 @@ module upd765_lite
 	output      [7:0] msr_o,          // the main status register
 	output            res_int,        // a result is waiting, or a seek ended: the interrupt without the data requests
 
+	output            m_drv,          // the drive of the command (0 or 1)
 	output reg [19:0] m_addr,
 	output reg        m_rd,           // one clk; m_q holds the byte at m_done
 	input       [7:0] m_q,
 	input             m_done,         // a read or write finished
 	output reg        m_we,
 	output reg  [7:0] m_d,
-	input             m_ready,
-	input             m_wprot
+	input       [1:0] m_ready,        // per drive
+	input       [1:0] m_wprot
 );
 
 localparam [12:0] T_BYTE = 13'd458;     // 16 us between data bytes
@@ -52,16 +53,24 @@ reg  [7:0] res[0:6];
 reg  [2:0] nres, res_len;
 reg        res_int_r;              // INT at the start of a result phase (read / write / ID / format)
 
-reg  [5:0] pcn;                    // drive 0's cylinder
-reg        seek_pend;
-reg  [7:0] seek_st0, seek_pcn;
-reg [15:0] seek_cnt;
-reg        seeking;
+reg  [5:0] pcn[0:1];               // each drive's cylinder
+reg  [3:0] seek_pend;              // per drive: a seek ended, for SENSE INTERRUPT STATUS
+reg  [7:0] seek_st0[0:3], seek_pcn[0:3];
+reg [15:0] seek_cnt[0:3];
+reg  [3:0] seeking;
 
 wire [4:0] op = cmd[0][4:0];
 wire [1:0] us = cmd[1][1:0];
 wire       hd = cmd[1][2];
 wire [7:0] hdus = {5'd0, cmd[1][2:0]};
+wire       drv1 = cmd[1][0];
+wire       present = !cmd[1][1];   // drives 0 and 1
+wire       rdy = present && m_ready[drv1];
+wire       wp = m_wprot[drv1];
+wire [5:0] cyl = pcn[drv1];
+assign m_drv = drv1;
+// the lowest drive with a seek ended
+wire [1:0] sp = seek_pend[0] ? 2'd0 : seek_pend[1] ? 2'd1 : seek_pend[2] ? 2'd2 : 2'd3;
 
 function automatic [3:0] cmd_length(input [4:0] c);
 	case (c)
@@ -106,14 +115,14 @@ wire is_fmt   = op == 5'h0d;
 
 wire rqm = phase == P_CMD || phase == P_RES || (phase == P_EXEC && drq);
 wire dio = phase == P_RES || (phase == P_EXEC && is_read);
-wire [7:0] msr = {rqm, dio, phase == P_EXEC, phase != P_CMD || ncmd != 0, 3'b000, seeking};
+wire [7:0] msr = {rqm, dio, phase == P_EXEC, phase != P_CMD || ncmd != 0, seeking};
 
 assign dout = a0 ? (phase == P_RES ? res[nres] : dbuf) : msr;
-assign int_o = (phase == P_EXEC && drq) || res_int_r || seek_pend;
+assign int_o = (phase == P_EXEC && drq) || res_int_r || seek_pend != 0;
 assign exec = phase == P_EXEC;
 assign drq_o = drq;
 assign msr_o = msr;
-assign res_int = res_int_r || seek_pend;
+assign res_int = res_int_r || seek_pend != 0;
 
 task automatic result7(input [7:0] s0, input [7:0] s1, input [7:0] s2, input [7:0] c, input [7:0] h,
                        input [7:0] r, input [7:0] n);
@@ -131,7 +140,7 @@ always @(posedge clk) begin
 		phase <= P_CMD;
 		ncmd <= 0;
 		res_int_r <= 0;
-		pcn <= 0;
+		pcn[0] <= 0; pcn[1] <= 0;
 		seek_pend <= 0;
 		seeking <= 0;
 		drq <= 0;
@@ -140,10 +149,11 @@ always @(posedge clk) begin
 		if (tc && phase == P_EXEC) tc_seen <= 1'b1;
 
 		// a seek finishes after T_SEEK
-		if (seeking) begin
-			if (seek_cnt != 0) seek_cnt <= seek_cnt - 1'd1;
-			else begin seeking <= 0; seek_pend <= 1'b1; end
-		end
+		for (int i = 0; i < 4; i++)
+			if (seeking[i]) begin
+				if (seek_cnt[i] != 0) seek_cnt[i] <= seek_cnt[i] - 1'd1;
+				else begin seeking[i] <= 0; seek_pend[i] <= 1'b1; end
+			end
 
 		case (phase)
 		P_CMD:
@@ -172,27 +182,27 @@ always @(posedge clk) begin
 			5'h03: phase <= P_CMD;                                   // specify: nothing to keep
 			5'h04: begin                                             // sense drive status: ST3
 				// a two-sided drive (TS): DISK.ROM waits for it before each transfer; the disk's sides are its own
-				res[0] <= us == 0 ? {1'b0, m_wprot, 1'b1, pcn == 0, 1'b1, hd, us} : {5'd0, hd, us};
+				res[0] <= present ? {1'b0, wp, 1'b1, cyl == 0, 1'b1, hd, us} : {5'd0, hd, us};
 				res_len <= 3'd1; nres <= 0; phase <= P_RES;
 			end
 			5'h07, 5'h0f: begin                                      // recalibrate, seek
-				if (us == 0) begin
-					pcn <= op == 5'h07 ? 6'd0 : cmd[2][5:0];
-					seek_st0 <= {8'h20 | {6'd0, us}};
-					seek_pcn <= op == 5'h07 ? 8'd0 : cmd[2];
+				if (present) begin
+					pcn[drv1] <= op == 5'h07 ? 6'd0 : cmd[2][5:0];
+					seek_st0[us] <= {8'h20 | {6'd0, us}};
+					seek_pcn[us] <= op == 5'h07 ? 8'd0 : cmd[2];
 				end
 				else begin
-					seek_st0 <= op == 5'h07 ? 8'h70 | {6'd0, us} : 8'h68 | {6'd0, us};   // no drive
-					seek_pcn <= 0;
+					seek_st0[us] <= op == 5'h07 ? 8'h70 | {6'd0, us} : 8'h68 | {6'd0, us};   // no drive
+					seek_pcn[us] <= 0;
 				end
-				seek_pend <= 0;
-				seeking <= 1'b1; seek_cnt <= T_SEEK;
+				seek_pend[us] <= 0;
+				seeking[us] <= 1'b1; seek_cnt[us] <= T_SEEK;
 				phase <= P_CMD;
 			end
 			5'h08: begin                                             // sense interrupt status
-				if (seek_pend) begin
-					res[0] <= seek_st0; res[1] <= seek_pcn; res_len <= 3'd2;
-					seek_pend <= 0;
+				if (seek_pend != 0) begin
+					res[0] <= seek_st0[sp]; res[1] <= seek_pcn[sp]; res_len <= 3'd2;
+					seek_pend[sp] <= 0;
 				end
 				else begin res[0] <= 8'h80; res_len <= 3'd1; end
 				nres <= 0; phase <= P_RES;
@@ -201,17 +211,17 @@ always @(posedge clk) begin
 				if (!(is_read || is_write || is_rid || is_fmt)) begin   // invalid
 					res[0] <= 8'h80; res_len <= 3'd1; nres <= 0; phase <= P_RES;
 				end
-				else if (us != 0 || !m_ready) begin
+				else if (!rdy) begin
 					result7(8'h48 | hdus, 8'h00, 8'h00, cmd[2], cmd[3], cmd[4], cmd[5]);   // not ready
 				end
-				else if ((is_write || is_fmt) && m_wprot) begin
+				else if ((is_write || is_fmt) && wp) begin
 					result7(8'h40 | hdus, 8'h02, 8'h00, cmd[2], cmd[3], cmd[4], cmd[5]);   // not writable
 				end
 				else case (xs)
 				// the track's offset from the table at 20h
 				X_TRK: begin
 					if (mw == 0) begin
-						if (!m_pend) begin m_addr <= 20'h20 + {pcn, hd, 2'b00} + bi; m_rd <= 1'b1; mw <= 1; end
+						if (!m_pend) begin m_addr <= 20'h20 + {cyl, hd, 2'b00} + bi; m_rd <= 1'b1; mw <= 1; end
 					end
 					else if (m_done) begin
 						mw <= 0;

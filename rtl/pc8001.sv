@@ -2,8 +2,8 @@
 //
 // The text screen: the uPD8257 DMA (rtl/i8257.sv) copies each row of the text VRAM into the uPD3301 CRTC
 // (rtl/pc8001_crtc.sv), holding the Z80 with BUSREQ for the bytes it reads, as CSCP models it: 5.95 CPU clocks
-// a byte (XM8's measurement on a PC-8801MA2 in its 4 MHz mode). The Z80's M1 cycles get one wait state (CSCP
-// PC88::get_m1_wait at 4 MHz).
+// a byte (XM8's measurement on a PC-8801MA2 in its 4 MHz mode). Each memory read gets one wait state (CSCP's
+// PC-8001: memory wait on).
 //
 // boot.rom (ioctl index 0): N-BASIC (24 KB) at 0000h, font.rom (2 KB) at 6000h, and optionally disk.rom (the
 // PC-80S31's 2 KB firmware) at 6800h: with it the disk unit (rtl/pc80s31.sv) is connected at FCh-FFh.
@@ -16,6 +16,9 @@ module pc8001 #(
 	input         clk_sys,        // 28.636 MHz
 	input         reset,
 	input         ram16k,         // 16 KB at C000-FFFF instead of 32 KB at 8000-FFFF
+	input         pcg_on,         // PCG-8100 connected
+	input  [64:0] rtc,            // hps_io RTC, for the uPD1990A
+	input         kbd_us,         // keyboard: US symbols (else JIS positions)
 
 	input  [10:0] ps2_key,
 
@@ -34,14 +37,14 @@ module pc8001 #(
 	input  [24:0] ioctl_addr,
 	input   [7:0] ioctl_dout,
 
-	// the disk image (hps_io S0) and DDR3 for it
-	input         img_mounted,
+	// the disk images (hps_io S0, S1) and DDR3 for them
+	input   [1:0] img_mounted,    // drives 0 and 1 (S0, S1)
 	input         img_readonly,
 	input  [63:0] img_size,
-	output [31:0] sd_lba,
-	output        sd_rd,
-	output        sd_wr,
-	input         sd_ack,
+	output [63:0] sd_lba,         // {drive 1, drive 0}
+	output  [1:0] sd_rd,
+	output  [1:0] sd_wr,
+	input   [1:0] sd_ack,
 	input   [8:0] sd_buff_addr,
 	input   [7:0] sd_buff_dout,
 	output  [7:0] sd_buff_din,
@@ -56,8 +59,8 @@ module pc8001 #(
 	output  [7:0] ddr_be,
 	output        ddr_we,
 	output        disk_unit,      // DISK.ROM loaded
-	output        disk_ready,
-	output        disk_too_big,
+	output  [1:0] disk_ready,
+	output  [1:0] disk_too_big,
 	output        disk_motor,
 
 	output        ce_pix,
@@ -112,22 +115,25 @@ reg   [7:0] cpu_din;
 
 wire rom_dl = ioctl_download & (ioctl_index[5:0] == 6'd0);
 
-// M1 wait: one wait state in each opcode fetch (T80 samples WAIT_n in T2)
-reg  m1_waited = 0;
-wire wait_n = ~(~m1_n & ~mreq_n & ~m1_waited);
+// Memory wait: one wait state in each memory read, opcode fetches included, none in writes (CSCP on the
+// PC-8001: mem_wait_on, PC88::get_main_wait). The T80 drives RD_n and MREQ_n low for T2 (and its waits) only,
+// and samples WAIT_n in T2.
+reg  rd_waited = 0;
+wire wait_n = ~(~mreq_n & ~rd_n & ~rd_waited);
 always @(posedge clk_sys) begin
-	if (m1_n) m1_waited <= 0;
-	else if (ce_cpu & ~mreq_n) m1_waited <= 1;
+	if (mreq_n | rd_n) rd_waited <= 0;
+	else if (ce_cpu) rd_waited <= 1;
 end
 
-// DMA bus steal: 5.95 CPU clocks for each byte the CRTC reads (1523/256)
-reg  [15:0] steal = 0;
-wire        busrq = steal >= 16'd256;
+// DMA bus steal: 5.95 CPU clocks for each byte the CRTC reads (1523/256). A row (up to 120 bytes) comes in a
+// burst, so the count needs 20 bits.
+reg  [19:0] steal = 0;
+wire        busrq = steal >= 20'd256;
 wire        dma_adv;
 always @(posedge clk_sys) begin
 	if (cpu_reset) steal <= 0;
 	else if (tape_turbo_on) steal <= 0;
-	else steal <= steal + (dma_adv ? 16'd1523 : 16'd0) - ((ce_cpu & busrq) ? 16'd256 : 16'd0);
+	else steal <= steal + (dma_adv ? 20'd1523 : 20'd0) - ((ce_cpu & busrq) ? 20'd256 : 20'd0);
 end
 wire cpu_reset = reset | rom_dl;
 
@@ -176,13 +182,31 @@ end
 
 // font.rom, 8x8 characters, bit 7 on the left
 reg  [7:0] font[0:2047];
-reg  [7:0] font_q;
+reg  [7:0] font_rq, pcg_rom_q;
 wire [10:0] font_a;
 wire       font_we = rom_dl & ioctl_wr & (ioctl_addr[24:11] == 14'h0C);   // 6000h-67FFh
+reg  [9:0] pcg_addr = 0;
 always @(posedge clk_sys) begin
 	if (font_we) font[ioctl_addr[10:0]] <= ioctl_dout;
-	font_q <= font[font_a];
+	font_rq <= font[font_a];
+	pcg_rom_q <= font[{1'b1, pcg_addr}];
 end
+
+// PCG-8100 (as CSCP): RAM patterns for codes 80h-FFh, a copy of the ROM's at load. Port 00h the data, 01h the
+// address (low 8 bits), 02h: bits 1-0 the address's top bits, bit 4 writes on its fall (bit 5: the ROM's
+// pattern instead of the data), bits 3, 6, 7 sound channels 0-2 on; 0Ch-0Fh an 8253 at 3.9936 MHz.
+reg  [7:0] pcg[0:1023];
+reg  [7:0] pcg_q, pcg_data = 0, pcg_ctrl = 0;
+reg        pcg_wr;
+reg  [7:0] pcg_wd;
+reg        pcg_sel;
+always @(posedge clk_sys) begin
+	if (font_we & ioctl_addr[10]) pcg[ioctl_addr[9:0]] <= ioctl_dout;
+	else if (pcg_wr) pcg[pcg_addr] <= pcg_wd;
+	pcg_q <= pcg[font_a[9:0]];
+	pcg_sel <= pcg_on & font_a[10];
+end
+wire [7:0] font_q = pcg_sel ? pcg_q : font_rq;
 
 // RAM: 32 KB at 8000-FFFF (16 KB: C000-FFFF). Port b is the display's.
 wire        is_ram = A[15] & (~ram16k | A[14]);
@@ -211,6 +235,9 @@ wire io_wr = ~iorq_n & ~wr_n & m1_n;
 
 reg  [7:0] port30 = 0;     // bit 0: 80 columns, 1: mono, 2: CDS, 3: motor, 5-4: 8251 rate / RS-232C
 reg        beep_on = 0;    // port 40h bit 5
+reg  [3:0] port10 = 0;     // printer data; bits 2-0 the RTC's command, bit 3 its DIN
+reg  [2:1] port40 = 0;     // bit 1 the RTC's STB (taken as it falls), bit 2 its CLK
+wire       rtc_dout;
 wire       vrtc;
 wire [7:0] crtc_dout, dma_dout, kbd_dout, usart_dout, disk_dout;
 wire       cmt_dcd;
@@ -221,11 +248,29 @@ always @(posedge clk_sys) begin
 	if (cpu_reset) begin
 		port30 <= 0;
 		beep_on <= 0;
+		port10 <= 0;
+		port40 <= 0;
+		pcg_ctrl <= 0;
 	end
 	else if (io_wr & ~old_io_wr) begin
 		case (A[7:4])
+		4'h1: port10 <= cpu_dout[3:0];
 		4'h3: port30 <= cpu_dout;
-		4'h4: beep_on <= cpu_dout[5];
+		4'h4: begin beep_on <= cpu_dout[5]; port40 <= cpu_dout[2:1]; end
+		default: ;
+		endcase
+	end
+	pcg_wr <= 0;
+	if (io_wr & ~old_io_wr & pcg_on) begin
+		case (A[7:0])
+		8'h00: pcg_data <= cpu_dout;
+		8'h01: pcg_addr[7:0] <= cpu_dout;
+		8'h02: begin
+			pcg_wr <= pcg_ctrl[4] & ~cpu_dout[4];
+			pcg_wd <= pcg_ctrl[5] ? pcg_rom_q : pcg_data;
+			pcg_addr[9:8] <= cpu_dout[1:0];
+			pcg_ctrl <= cpu_dout;
+		end
 		default: ;
 		endcase
 	end
@@ -236,7 +281,7 @@ always @(*) begin
 	casez (A[7:0])
 	8'h0?:   io_dout = kbd_dout;                     // keyboard rows 00h-09h
 	8'h2?:   io_dout = usart_dout;                   // 8251
-	8'h4?:   io_dout = {2'b00, vrtc, 2'b00, cmt_dcd, 2'b00};   // 5 VRTC, 2 CMT carrier (4 RTC, 3 /EXTON, 1 ACK, 0 BUSY)
+	8'h4?:   io_dout = {2'b00, vrtc, rtc_dout, 1'b0, cmt_dcd, 2'b00};   // 5 VRTC, 4 RTC DOUT, 2 CMT carrier (3 /EXTON, 1 ACK, 0 BUSY)
 	8'h50, 8'h51: io_dout = crtc_dout;
 	8'h6?:   io_dout = dma_dout;
 	8'hFC, 8'hFD, 8'hFE, 8'hFF: io_dout = disk_dout;   // the disk unit's 8255 (FFh without DISK.ROM)
@@ -266,7 +311,48 @@ always @(posedge clk_sys) if (ce_pix) begin
 	end
 	else beep_div <= beep_div + 1'd1;
 end
-assign audio = (beep_on & beep_sq) ? 16'h2000 : 16'h0000;
+
+// PCG-8100 sound: the 8253's outputs, each switched by a bit of port 02h
+reg  [17:0] pit_acc = 0;
+reg         pit_ce = 0;
+always @(posedge clk_sys) begin
+	if (pit_acc + 18'd39936 >= 18'd286364) begin pit_acc <= pit_acc + 18'd39936 - 18'd286364; pit_ce <= 1'b1; end
+	else begin pit_acc <= pit_acc + 18'd39936; pit_ce <= 1'b0; end
+end
+wire [2:0] pit_out;
+pit8253 pit
+(
+	.clk(clk_sys),
+	.reset(cpu_reset),
+	.addr(A[1:0]),
+	.din(cpu_dout),
+	.dout(),
+	.wr_stb(io_wr & ~old_io_wr & pcg_on & (A[7:2] == 6'b000011)),
+	.rd_stb(1'b0),
+	.clk_ce({3{pit_ce}}),
+	.gate(3'b111),
+	.gate_trig(3'b000),
+	.out(pit_out)
+);
+wire [2:0] pcg_snd = pcg_on ? (pit_out & {pcg_ctrl[7], pcg_ctrl[6], pcg_ctrl[3]}) : 3'b000;
+assign audio = ((beep_on & beep_sq) ? 16'h2000 : 16'h0000) + (pcg_snd[0] ? 16'h1800 : 16'h0000) +
+               (pcg_snd[1] ? 16'h1800 : 16'h0000) + (pcg_snd[2] ? 16'h1800 : 16'h0000);
+
+//----------------------------------------------------------------------------
+// uPD1990A calendar clock
+//----------------------------------------------------------------------------
+
+upd1990a rtc_chip
+(
+	.clk(clk_sys),
+	.reset(cpu_reset),
+	.rtc(rtc),
+	.c(port10[2:0]),
+	.din(port10[3]),
+	.stb(~port40[1]),
+	.clk_in(port40[2]),
+	.dout(rtc_dout)
+);
 
 //----------------------------------------------------------------------------
 // Keyboard, DMA, CRTC
@@ -277,6 +363,7 @@ pc8001_kbd kbd
 	.clk(clk_sys),
 	.reset(reset),
 	.ps2_key(ps2_key),
+	.kbd_us(kbd_us),
 	.row(A[3:0]),
 	.data(kbd_dout)
 );
@@ -427,15 +514,6 @@ pc80s31 disk
 	.ddr_din(ddr_din),
 	.ddr_be(ddr_be),
 	.ddr_we(ddr_we),
-	.ext_sel(1'b0),
-	.ext_m_addr(20'd0),
-	.ext_m_rd(1'b0),
-	.ext_m_we(1'b0),
-	.ext_m_d(8'd0),
-	.ext_m_q(),
-	.ext_m_done(),
-	.ext_m_ready(),
-	.ext_m_wprot(),
 	.disk_ready(disk_ready),
 	.disk_too_big(disk_too_big),
 	.motor(disk_motor)

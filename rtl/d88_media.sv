@@ -46,7 +46,8 @@ module d88_media #(parameter int SIZE = 524288, parameter [28:0] BASE = 29'h0600
 	output reg        ddr_rd = 0,
 	output reg [63:0] ddr_din,
 	output reg  [7:0] ddr_be,
-	output reg        ddr_we = 0
+	output reg        ddr_we = 0,
+	output            ddr_quiet       // no DDR3 access under way or asked for: another user may have DDR3
 );
 
 localparam int NBLK = SIZE / 512;
@@ -96,6 +97,7 @@ reg  [7:0] f_d;
 localparam S_IDLE = 4'd0, S_LOAD = 4'd1, S_LOAD_OUT = 4'd2, S_LOAD_W = 4'd3, S_FRD = 4'd4, S_FWE = 4'd5,
            S_WB_IN = 4'd6, S_WB_R = 4'd7;
 reg  [3:0] st = S_IDLE;
+assign ddr_quiet = !ddr_rd && !ddr_we && (st == S_IDLE || st == S_LOAD);
 reg        out_rd;                 // S_LOAD_OUT: the buffer word is being read
 reg        wb_sd = 0;              // a written-back block is going out to the SD image
 

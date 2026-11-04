@@ -64,7 +64,8 @@ localparam CONF_STR = {
 	"PC8001;;",
 	"-;",
 	// PC-80S31 disk unit, when boot.rom has disk.rom: a .d88 image, written back as the drive changes it
-	"S0,D88,Disk;",
+	"S0,D88,Drive 1;",
+	"S1,D88,Drive 2;",
 	// The whole image is loaded into the core; not remembered (F, not FC), so a core start has no tape.
 	"F1,CMTT88,Tape;",
 	"F0,ROM,Load ROM;",
@@ -76,6 +77,8 @@ localparam CONF_STR = {
 	"R[0],Apply and reset;",
 
 	"P1O[1],Memory,32 KB,16 KB;",
+	"P1O[6],PCG-8100,Off,On;",
+	"P1O[7],Keyboard,JP (positions),US (symbols);",
 	"P1-;",
 	"P1O[4],Tape speed,", 8'h30 + 8'(TURBO), "x,Normal;",
 	"P1-;",
@@ -93,6 +96,7 @@ wire forced_scandoubler;
 wire   [1:0] buttons;
 wire [127:0] status;
 wire  [10:0] ps2_key;
+wire  [64:0] rtc;
 
 wire         ioctl_download;
 wire   [7:0] ioctl_index;
@@ -100,14 +104,16 @@ wire         ioctl_wr;
 wire  [26:0] ioctl_addr;
 wire   [7:0] ioctl_dout;
 
-wire        img_mounted, img_readonly, sd_rd, sd_wr, sd_ack, sd_buff_wr;
+wire  [1:0] img_mounted, sd_rd, sd_wr, sd_ack;
+wire        img_readonly, sd_buff_wr;
 wire [63:0] img_size;
-wire [31:0] sd_lba;
+wire [63:0] sd_lba;              // {drive 2, drive 1}
 wire  [8:0] sd_buff_addr;
 wire  [7:0] sd_buff_dout, sd_buff_din;
-wire        disk_unit, disk_ready, disk_too_big, disk_motor;
+wire        disk_unit, disk_motor;
+wire  [1:0] disk_ready, disk_too_big;
 
-hps_io #(.CONF_STR(CONF_STR), .VDNUM(1)) hps_io
+hps_io #(.CONF_STR(CONF_STR), .VDNUM(2)) hps_io
 (
 	.clk_sys(clk_sys),
 	.HPS_BUS(HPS_BUS),
@@ -123,6 +129,7 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(1)) hps_io
 	.info(tape_info),
 
 	.ps2_key(ps2_key),
+	.RTC(rtc),
 
 	.ioctl_download(ioctl_download),
 	.ioctl_index(ioctl_index),
@@ -134,14 +141,14 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(1)) hps_io
 	.img_mounted(img_mounted),
 	.img_readonly(img_readonly),
 	.img_size(img_size),
-	.sd_lba('{sd_lba}),
-	.sd_blk_cnt('{6'd0}),
+	.sd_lba('{sd_lba[31:0], sd_lba[63:32]}),
+	.sd_blk_cnt('{6'd0, 6'd0}),
 	.sd_rd(sd_rd),
 	.sd_wr(sd_wr),
 	.sd_ack(sd_ack),
 	.sd_buff_addr(sd_buff_addr),
 	.sd_buff_dout(sd_buff_dout),
-	.sd_buff_din('{sd_buff_din}),
+	.sd_buff_din('{sd_buff_din, sd_buff_din}),
 	.sd_buff_wr(sd_buff_wr)
 );
 
@@ -161,7 +168,7 @@ wire reset = RESET | status[0] | buttons[1] | (ioctl_download & ioctl_index[5:0]
 // The settings the machine runs with, taken from the OSD at every reset
 reg [127:0] cfg;
 always @(posedge clk_sys) if (reset) cfg <= status;
-wire osd_pending = {status[1], status[122:121]} != {cfg[1], cfg[122:121]};
+wire osd_pending = {status[6], status[1], status[122:121]} != {cfg[6], cfg[1], cfg[122:121]};
 
 //////////////////////////////////////////////////////////////////
 
@@ -179,6 +186,9 @@ pc8001 #(.TURBO(TURBO)) pc8001
 	.clk_sys(clk_sys),
 	.reset(reset),
 	.ram16k(cfg[1]),
+	.pcg_on(cfg[6]),
+	.rtc(rtc),
+	.kbd_us(status[7]),
 
 	.ps2_key(ps2_key),
 
@@ -236,7 +246,8 @@ pc8001 #(.TURBO(TURBO)) pc8001
 // One OSD message per tape download: ready (rewound), or cut off at 64 KB
 reg       tape_info_req = 0;
 reg [7:0] tape_info = 0;
-reg       old_tape_dl = 0, old_mount = 0;
+reg       old_tape_dl = 0;
+reg [1:0] old_mount = 0;
 always @(posedge clk_sys) begin
 	old_tape_dl <= ioctl_download && ioctl_index[5:0] == 6'd1;
 	tape_info_req <= 0;
@@ -246,7 +257,7 @@ always @(posedge clk_sys) begin
 	end
 	// a disk mounted: too large, or no unit to put it in
 	old_mount <= img_mounted;
-	if (old_mount && !img_mounted && img_size != 0) begin
+	if ((old_mount & ~img_mounted) != 0 && img_size != 0) begin
 		if (!disk_unit) begin tape_info <= 8'd4; tape_info_req <= 1; end
 		else if (img_size > 64'd524288) begin tape_info <= 8'd3; tape_info_req <= 1; end
 	end

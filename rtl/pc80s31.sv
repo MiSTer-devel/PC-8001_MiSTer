@@ -1,4 +1,4 @@
-// PC-80S31 mini disk unit (one drive here), running its own firmware: a Z80 at 4 MHz with DISK.ROM (2 KB, MAME
+// PC-80S31 mini disk unit (two drives), running its own firmware: a Z80 at 4 MHz with DISK.ROM (2 KB, MAME
 // disk.rom sha1 bb7103a0...), 16 KB of RAM, a uPD765 and an 8255 that faces the host's 8255 at FCh-FFh (on the
 // PC-8001 the host 8255 is in the PC-8033 interface; it is modelled here with the unit). The two 8255s are wired
 // as in CSCP: each side's port B drives the other's port A, and the halves of port C cross.
@@ -9,7 +9,7 @@
 // PC80S31K::get_intr_ack gives NOP), since the firmware stays in interrupt mode 0.
 //
 // Without DISK.ROM the unit is not connected: the host's ports read FFh (the ROM then waits about 2.7 s at boot
-// for a unit before BASIC). The disk image (one drive, up to 512 KB: 1D or 2D .d88) is in DDR3.
+// for a unit before BASIC). The disk images (up to 512 KB each: 1D or 2D .d88) are in DDR3, drive 1's 512 KB after drive 0's.
 
 module pc80s31
 (
@@ -29,14 +29,14 @@ module pc80s31
 	input       [7:0] din,
 	output      [7:0] dout,
 
-	// the disk image (hps_io S0)
-	input             img_mounted,
+	// the disk images (hps_io S0, S1)
+	input       [1:0] img_mounted,    // drives 0 and 1 (hps_io S0, S1)
 	input             img_readonly,
 	input      [63:0] img_size,
-	output     [31:0] sd_lba,
-	output            sd_rd,
-	output            sd_wr,
-	input             sd_ack,
+	output     [63:0] sd_lba,         // {drive 1, drive 0}
+	output      [1:0] sd_rd,
+	output      [1:0] sd_wr,
+	input       [1:0] sd_ack,
 	input       [8:0] sd_buff_addr,
 	input       [7:0] sd_buff_dout,
 	output      [7:0] sd_buff_din,
@@ -53,23 +53,12 @@ module pc80s31
 	output      [7:0] ddr_be,
 	output            ddr_we,
 
-	// another user of the image (the PC-6001 core's PC-6601 drive); tie ext_sel to 0
-	input             ext_sel,
-	input      [19:0] ext_m_addr,
-	input             ext_m_rd,
-	input             ext_m_we,
-	input       [7:0] ext_m_d,
-	output      [7:0] ext_m_q,
-	output            ext_m_done,
-	output            ext_m_ready,
-	output            ext_m_wprot,
-
-	output            disk_ready,
-	output            disk_too_big,
+	output      [1:0] disk_ready,
+	output      [1:0] disk_too_big,
 	output reg        motor
 );
 
-wire drv_reset = reset | ~rom_ok | ext_sel;
+wire drv_reset = reset | ~rom_ok;
 
 // 4 MHz from 28.636364 MHz
 reg [14:0] ce_acc = 0;
@@ -151,10 +140,12 @@ always @(posedge clk) begin
 	else if (io_wr && sel_f8) motor <= cpu_dout != 0;
 end
 
-// the uPD765 and the disk
+// the uPD765 and the disks
 wire [19:0] m_addr;
-wire  [7:0] m_q, m_d, fdc_dout;
-wire        m_rd, m_done, m_we, m_ready, m_wprot;
+wire  [7:0] m_q[0:1];
+wire  [7:0] m_d, fdc_dout;
+wire        m_rd, m_we, m_drv;
+wire  [1:0] m_done, m_ready, m_wprot;
 
 upd765_lite fdc
 (
@@ -167,56 +158,75 @@ upd765_lite fdc
 	.dout(fdc_dout),
 	.tc(io_rd & sel_f8),
 	.int_o(fdc_int),
+	.m_drv(m_drv),
 	.m_addr(m_addr),
 	.m_rd(m_rd),
-	.m_q(m_q),
-	.m_done(m_done),
+	.m_q(m_q[m_drv]),
+	.m_done(m_done[m_drv]),
 	.m_we(m_we),
 	.m_d(m_d),
 	.m_ready(m_ready),
 	.m_wprot(m_wprot)
 );
 
-// not reset with the machine: a reset keeps the disk
-d88_media media
-(
-	.clk(clk),
-	.reset(1'b0),
-	.img_mounted(img_mounted),
-	.img_readonly(img_readonly),
-	.img_size(img_size),
-	.sd_lba(sd_lba),
-	.sd_rd(sd_rd),
-	.sd_wr(sd_wr),
-	.sd_ack(sd_ack),
-	.sd_buff_addr(sd_buff_addr),
-	.sd_buff_dout(sd_buff_dout),
-	.sd_buff_din(sd_buff_din),
-	.sd_buff_wr(sd_buff_wr),
-	.addr(ext_sel ? ext_m_addr : m_addr),
-	.rd(ext_sel ? ext_m_rd : m_rd),
-	.we(ext_sel ? ext_m_we : m_we),
-	.d(ext_sel ? ext_m_d : m_d),
-	.q(m_q),
-	.done(m_done),
-	.ready(m_ready),
-	.wprot(m_wprot),
-	.too_big(disk_too_big),
-	.ddr_busy(ddr_busy),
-	.ddr_burstcnt(ddr_burstcnt),
-	.ddr_addr(ddr_addr),
-	.ddr_dout(ddr_dout),
-	.ddr_dout_ready(ddr_dout_ready),
-	.ddr_rd(ddr_rd),
-	.ddr_din(ddr_din),
-	.ddr_be(ddr_be),
-	.ddr_we(ddr_we)
-);
+// DDR3 shared by the two images: the grant changes hands when its holder is quiet and the other wants it
+wire [28:0] d_addr[0:1];
+wire [63:0] d_din[0:1];
+wire  [7:0] d_be[0:1];
+wire  [1:0] d_rd, d_we, d_quiet;
+reg         g = 0;
+always @(posedge clk) if (d_quiet[g] && (d_rd[~g] || d_we[~g])) g <= ~g;
+assign ddr_burstcnt = 8'd1;
+assign ddr_addr = d_addr[g];
+assign ddr_din = d_din[g];
+assign ddr_be = d_be[g];
+assign ddr_rd = d_rd[g];
+assign ddr_we = d_we[g];
+wire [7:0] sd_din[0:1];
+assign sd_buff_din = sd_ack[1] ? sd_din[1] : sd_din[0];
+
+// not reset with the machine: a reset keeps the disks
+genvar i;
+generate for (i = 0; i < 2; i = i + 1) begin : drive
+	d88_media #(.BASE(29'h06000000 + 29'(i) * 29'h10000)) media
+	(
+		.clk(clk),
+		.reset(1'b0),
+		.img_mounted(img_mounted[i]),
+		.img_readonly(img_readonly),
+		.img_size(img_size),
+		.sd_lba(sd_lba[i*32 +: 32]),
+		.sd_rd(sd_rd[i]),
+		.sd_wr(sd_wr[i]),
+		.sd_ack(sd_ack[i]),
+		.sd_buff_addr(sd_buff_addr),
+		.sd_buff_dout(sd_buff_dout),
+		.sd_buff_din(sd_din[i]),
+		.sd_buff_wr(sd_buff_wr & sd_ack[i]),
+		.addr(m_addr),
+		.rd(m_rd & (m_drv == i)),
+		.we(m_we & (m_drv == i)),
+		.d(m_d),
+		.q(m_q[i]),
+		.done(m_done[i]),
+		.ready(m_ready[i]),
+		.wprot(m_wprot[i]),
+		.too_big(too_big[i]),
+		.ddr_busy(ddr_busy | (g != i)),
+		.ddr_burstcnt(),
+		.ddr_addr(d_addr[i]),
+		.ddr_dout(ddr_dout),
+		.ddr_dout_ready(ddr_dout_ready & (g == i)),
+		.ddr_rd(d_rd[i]),
+		.ddr_din(d_din[i]),
+		.ddr_be(d_be[i]),
+		.ddr_we(d_we[i]),
+		.ddr_quiet(d_quiet[i])
+	);
+end endgenerate
+wire [1:0] too_big;
 assign disk_ready = m_ready;
-assign ext_m_q = m_q;
-assign ext_m_done = m_done;
-assign ext_m_ready = m_ready;
-assign ext_m_wprot = m_wprot;
+assign disk_too_big = too_big;
 
 // the two 8255s
 wire [7:0] h_pa, h_pb, h_pc, d_pa, d_pb, d_pc, h_dout, d_dout;

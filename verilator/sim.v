@@ -8,6 +8,9 @@ module top
    input         clk_sys /*verilator public_flat*/,
    input         reset /*verilator public_flat*/,
    input         ram16k,
+   input         pcg_on,
+   input  [64:0] rtc,
+   input         kbd_us,
 
    output [7:0]  VGA_R /*verilator public_flat*/,
    output [7:0]  VGA_G /*verilator public_flat*/,
@@ -37,20 +40,20 @@ module top
    input   [7:0] ioctl_dout,
    output        ioctl_wait,
 
-   // the disk image, as hps_io's S0 (sim_headless.cpp serves the blocks)
-   input         img_mounted,
+   // the disk images, as hps_io's S0 and S1 (sim_headless.cpp serves the blocks)
+   input   [1:0] img_mounted,
    input         img_readonly,
    input  [63:0] img_size,
-   output [31:0] sd_lba,
-   output        sd_rd,
-   output        sd_wr,
-   input         sd_ack,
+   output [63:0] sd_lba,
+   output  [1:0] sd_rd,
+   output  [1:0] sd_wr,
+   input   [1:0] sd_ack,
    input   [8:0] sd_buff_addr,
    input   [7:0] sd_buff_dout,
    output  [7:0] sd_buff_din,
    input         sd_buff_wr,
    output        disk_motor /*verilator public_flat*/,
-   output        disk_ready /*verilator public_flat*/,
+   output  [1:0] disk_ready /*verilator public_flat*/,
 
    output [15:0] cpu_addr /*verilator public_flat*/,
    output        cpu_ce /*verilator public_flat*/,
@@ -71,7 +74,7 @@ pc8001 pc8001
 (
    .clk_sys(clk_sys),
    .reset(reset),
-   .ram16k(ram16k),
+   .ram16k(ram16k), .pcg_on(pcg_on), .rtc(rtc), .kbd_us(kbd_us),
    .ps2_key(ps2_key),
    .tape_turbo(tape_turbo),
    .tape_rewind(tape_rewind),
@@ -101,7 +104,7 @@ pc8001 pc8001
    .dbg_io_wr(dbg_io_wr), .dbg_io_rd(dbg_io_rd), .dbg_io_port(dbg_io_port), .dbg_io_data(dbg_io_data)
 );
 
-// DDR3 (sys/ddr_svc's side of emu): 512 KB at the disk image's base, one access at a time, busy now and then and
+// DDR3 (sys/ddr_svc's side of emu): 1 MB at the disk images' base (512 KB each), one access at a time, busy now and then and
 // reads coming back some clocks later, as the real one (from the PC-6001 core's sim)
 wire        ddr_rd, ddr_we;
 wire [28:0] ddr_addr;
@@ -109,9 +112,9 @@ wire [63:0] ddr_din;
 wire  [7:0] ddr_be;
 reg  [63:0] ddr_dout;
 reg         ddr_dout_ready = 0;
-reg  [63:0] ddr_mem[0:65535];    // 512 KB
+reg  [63:0] ddr_mem[0:131071];   // 1 MB
 reg   [3:0] ddr_lat = 0;
-reg  [15:0] ddr_ra;
+reg  [16:0] ddr_ra;
 reg   [7:0] ddr_lfsr = 8'h5a;
 wire        ddr_busy = ddr_lfsr[0] & ddr_lfsr[3] | ddr_lat != 0;
 always @(posedge clk_sys) begin
@@ -122,10 +125,10 @@ always @(posedge clk_sys) begin
       if (ddr_lat == 1) begin ddr_dout <= ddr_mem[ddr_ra]; ddr_dout_ready <= 1; end
    end
    else if (!ddr_busy) begin
-      if (ddr_rd) begin ddr_ra <= ddr_addr[15:0]; ddr_lat <= 4'd10; end
+      if (ddr_rd) begin ddr_ra <= ddr_addr[16:0]; ddr_lat <= 4'd10; end
       if (ddr_we) begin : wr
          integer i;
-         for (i = 0; i < 8; i = i + 1) if (ddr_be[i]) ddr_mem[ddr_addr[15:0]][i*8 +: 8] <= ddr_din[i*8 +: 8];
+         for (i = 0; i < 8; i = i + 1) if (ddr_be[i]) ddr_mem[ddr_addr[16:0]][i*8 +: 8] <= ddr_din[i*8 +: 8];
       end
    end
 end

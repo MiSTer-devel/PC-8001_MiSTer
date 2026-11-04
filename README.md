@@ -1,7 +1,7 @@
-# NEC PC-8000 series for MiSTer (planned)
+# NEC PC-8000 series for MiSTer
 
 A MiSTer core for NEC's PC-8000 series: the PC-8001 (1979), PC-8001mkII (1983) and PC-8001mkIISR (1985).
-Phase 0 is in place (see Status). This directory holds the plan ([PLAN.md](PLAN.md)) and the references gathered for it
+The PC-8001 runs (see Status). This directory holds the plan ([PLAN.md](PLAN.md)) and the references gathered for it
 (2026-11-03).
 
 MiSTer already has a PC-8801mkIISR core (MiSTer-devel/PC88_MiSTer). Its N mode runs much PC-8001 software, but
@@ -70,13 +70,17 @@ These are not in a MAME-named set, but are inside the downloaded software sets (
 
 ## Status
 
-2026-11-03 (TODO.md): phases 0-3. Text screen (uPD3301 + uPD8257), keyboard, cassette (.cmt/.t88, turbo) and the
-PC-80S31 disk unit (.d88). Every compared screen is pixel-identical to CSCP (tools/cscp_suite.sh). Not yet tried
-on a MiSTer.
+2026-11-03 (TODO.md): phases 0-3 and most of 4. Text screen (uPD3301 + uPD8257), keyboard (JIS positions or US
+symbols), cassette (.cmt/.t88, turbo), the PC-80S31 disk unit (two drives, .d88 on S0/S1), PCG-8100
+(programmable characters and its 8253 sound) and the uPD1990A clock (time from the MiSTer). Every compared
+screen is pixel-identical to CSCP (tools/cscp_suite.sh). Not yet tried on a MiSTer.
+
+OSD: Drive 1 / Drive 2 (.d88), Tape (.cmt/.t88), Load ROM (boot.rom); Machine: Memory 32/16 KB, PCG-8100,
+Keyboard JP/US, Tape speed, Rewind; Video: aspect ratio, tape overlay. Memory and PCG-8100 apply at reset.
 
 - boot.rom: `tools/make_boot_rom.sh refs/emulators/mame_roms/pc8001 rom/boot.rom` (= `cat n80v110.rom font.rom
   disk.rom`; leave disk.rom out for a machine without the disk unit).
-- Compare with CSCP: `tools/cscp_cmp.sh NAME FRAMES 'TEXT'` (DISK=, SWAP=, TAPE=, TEXT2= options), all cases:
+- Compare with CSCP: `tools/cscp_cmp.sh NAME FRAMES 'TEXT'` (DISK=, DISK2=, SWAP=, SWAP2=, TAPE=, TEXT2= options), all cases:
   `tools/cscp_suite.sh`.
 - Sim: `cd verilator && make && ./obj_dir_headless/Vtop --stop-at-frame 250 --screenshot 250`; `./run_tests.sh`.
 - MAME frames: `tools/mame_ref.sh pc8001 runs/mame/boot 100,300 ['300:PRINT 1\n']`.
