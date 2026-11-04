@@ -49,6 +49,11 @@ struct Options {
     bool        kbd_us = false;
     std::set<uint32_t> resets;            // --reset-at FRAME
     std::string wav_file;                 // --wav
+    std::string disk_rom;                 // DIR/disk.rom: the PC-80S31's firmware at 6800h of boot.rom
+    bool        disk_unit = false;        // --disk-unit (or --disk): load disk.rom, so the unit is connected
+    std::string disk_file;                // --disk FILE: a .d88 mounted as S0
+    std::string disk_out;                 // --disk-out FILE: the image as the drive left it
+    std::map<uint32_t, std::string> swaps; // --swap-disk FRAME:FILE: mount FILE before FRAME
     std::string tape_file;                // --tape FILE: .cmt / .t88 through ioctl index 1 (.t88: 41h)
     bool        tape_turbo = false;       // --tape-turbo: OSD Tape speed 5x
     std::vector<std::string> after_motor; // --after-motor TEXT: typed 20 frames after each motor stop
@@ -75,6 +80,9 @@ static void usage()
 "  --trace-from N         start tracing at frame N; --trace-to N stops after frame N\n"
 "  --dump-ram FILE        write the RAM (8000-FFFF, 32 KB) to FILE at the end\n"
 "  --wav FILE             record the audio output (48 kHz, 16-bit stereo WAV)\n"
+"  --disk FILE            mount a .d88 (OSD Disk) and connect the PC-80S31 unit (DIR/disk.rom); --disk-unit:\n"
+"                         the unit without a disk; --disk-out FILE writes the image as the drive left it\n"
+"  --swap-disk F:FILE     mount FILE in the drive before frame F (repeatable)\n"
 "  --tape FILE            load a .cmt / .t88 tape image (OSD Tape); --tape-turbo: OSD Tape speed 5x\n"
 "  --after-motor TEXT     type TEXT 20 frames after the tape motor stops (repeatable: one per stop, in order)\n"
 "  --stop-after-motor N   stop once the motor has stopped (after every --after-motor text) and stayed off\n"
@@ -95,6 +103,7 @@ static bool parse_args(int argc, char **argv, Options &o)
     std::string dir = "../refs/emulators/mame_roms/pc8001";
     o.basic_rom = dir + "/n80v110.rom";
     o.font_rom = dir + "/font.rom";
+    o.disk_rom = dir + "/disk.rom";
     for (int i = 1; i < argc; i++) {
         std::string a = argv[i];
         auto next = [&]() -> std::string {
@@ -123,7 +132,7 @@ static bool parse_args(int argc, char **argv, Options &o)
         else if (a == "--trace-io") o.io_file = next();
         else if (a == "--trace-from") o.trace_from = parse_num(next());
         else if (a == "--trace-to") o.trace_to = parse_num(next());
-        else if (a == "--rom-dir") { std::string d = next(); o.basic_rom = d + "/n80v110.rom"; o.font_rom = d + "/font.rom"; }
+        else if (a == "--rom-dir") { std::string d = next(); o.basic_rom = d + "/n80v110.rom"; o.font_rom = d + "/font.rom"; o.disk_rom = d + "/disk.rom"; }
         else if (a == "--basic") o.basic_rom = next();
         else if (a == "--font") o.font_rom = next();
         else if (a == "--ram16k") o.ram16k = true;
@@ -132,6 +141,10 @@ static bool parse_args(int argc, char **argv, Options &o)
         else if (a == "--reset-at") o.resets.insert(parse_num(next()));
         else if (a == "--wav") o.wav_file = next();
         else if (a == "--tape") o.tape_file = next();
+        else if (a == "--disk") { o.disk_file = next(); o.disk_unit = true; }
+        else if (a == "--disk-unit") o.disk_unit = true;
+        else if (a == "--disk-out") o.disk_out = next();
+        else if (a == "--swap-disk") { uint32_t f; if (!pair("FRAME:FILE", f, rest)) return false; o.swaps[f] = rest; }
         else if (a == "--tape-turbo") o.tape_turbo = true;
         else if (a == "--after-motor") o.after_motor.push_back(next());
         else if (a == "--stop-after-motor") o.tape_end_stop = parse_num(next());
@@ -171,6 +184,12 @@ private:
     bool      prev_motor = false, done = false;
     size_t    motor_stops = 0;
     uint32_t  motor_off_frame = 0, motor_on_frames = 0;
+    std::vector<uint8_t> disk;            // the disk image (hps_io S0): 512-byte blocks
+    int       sd_state = 0;               // 0 idle, 1 read block, 2 write block
+    uint32_t  sd_blk = 0, sd_i = 0, sd_wait = 0;
+    bool      disk_written = false, prev_disk_motor = false;
+    void sd_service();
+    void disk_mount();
     void clock();
     void end_frame();
     bool tracing() const { return started && frame >= opt.trace_from && frame <= opt.trace_to; }
@@ -218,7 +237,48 @@ void Sim::ioctl_load(uint32_t base, const std::vector<uint8_t> &data, int index)
     top->ioctl_download = 0;
 }
 
-// boot.rom as the MiSTer loads it: N-BASIC (24 KB) at 0, font.rom (2 KB) at 6000h
+// Main mounting the image: img_mounted for one clock with its size
+void Sim::disk_mount()
+{
+    top->img_size = disk.size();
+    top->img_readonly = 0;
+    top->img_mounted = 1;
+    clock();
+    top->img_mounted = 0;
+}
+
+// hps_io's side of sd_rd / sd_wr: sd_ack for the block, sd_buff_wr per byte read in, sd_buff_din sampled per byte
+// written out (the core's RAM has one clock of latency, so each address is held for 2 clocks)
+void Sim::sd_service()
+{
+    if (sd_state == 0) {
+        if (top->sd_rd || top->sd_wr) {
+            sd_state = top->sd_rd ? 1 : 2;
+            sd_blk = top->sd_lba;
+            sd_i = 0; sd_wait = 0;
+            top->sd_ack = 1;
+            top->sd_buff_addr = 0;
+            top->sd_buff_wr = 0;
+        }
+        return;
+    }
+    if (sd_state == 1) {
+        if (top->sd_buff_wr) { top->sd_buff_wr = 0; if (++sd_i == 512) { top->sd_ack = 0; sd_state = 0; } return; }
+        uint32_t a = sd_blk * 512 + sd_i;
+        top->sd_buff_addr = sd_i;
+        top->sd_buff_dout = a < disk.size() ? disk[a] : 0;
+        top->sd_buff_wr = 1;
+        return;
+    }
+    if (++sd_wait < 3) return;
+    sd_wait = 0;
+    uint32_t a = sd_blk * 512 + sd_i;
+    if (a < disk.size()) { disk[a] = top->sd_buff_din; disk_written = true; }
+    if (++sd_i == 512) { top->sd_ack = 0; sd_state = 0; return; }
+    top->sd_buff_addr = sd_i;
+}
+
+// boot.rom as the MiSTer loads it: N-BASIC (24 KB) at 0, font.rom (2 KB) at 6000h, disk.rom (2 KB) at 6800h
 bool Sim::load_rom()
 {
     std::vector<uint8_t> d, font;
@@ -228,6 +288,13 @@ bool Sim::load_rom()
     if (!read_file(opt.font_rom, font)) { fprintf(stderr, "cannot read font %s\n", opt.font_rom.c_str()); return false; }
     font.resize(0x800, 0xFF);
     d.insert(d.end(), font.begin(), font.end());
+    if (opt.disk_unit) {
+        std::vector<uint8_t> dr;
+        if (!read_file(opt.disk_rom, dr)) { fprintf(stderr, "cannot read %s\n", opt.disk_rom.c_str()); return false; }
+        dr.resize(0x800, 0xFF);
+        d.insert(d.end(), dr.begin(), dr.end());
+        if (!opt.quiet) fprintf(stderr, "[sim] boot.rom: + '%s' (disk unit)\n", opt.disk_rom.c_str());
+    }
     ioctl_load(0, d);
     if (!opt.quiet) fprintf(stderr, "[sim] boot.rom: '%s' + '%s'\n", opt.basic_rom.c_str(), opt.font_rom.c_str());
     return true;
@@ -280,7 +347,12 @@ void Sim::clock()
     top->clk_sys = 1;
     top->eval();
     cycle++;
+    sd_service();
     if (top->cpu_ce) cpu_cycles++;
+    if (top->disk_motor != prev_disk_motor) {
+        prev_disk_motor = top->disk_motor;
+        if (!opt.quiet) fprintf(stderr, "[sim] frame %u: disk motor %s\n", frame, prev_disk_motor ? "on" : "off");
+    }
 
     if (fwav && cycle >= wav_next) {
         int16_t lr[2] = {(int16_t)top->AUDIO_L, (int16_t)top->AUDIO_R};
@@ -337,6 +409,15 @@ void Sim::end_frame()
     auto range = ps2_schedule.equal_range(frame);
     for (auto it = range.first; it != range.second; ++it) ps2_queue.push_back(it->second);
     if (opt.resets.count(frame)) reset_machine();
+    auto sw = opt.swaps.find(frame);
+    if (sw != opt.swaps.end()) {
+        disk.clear();
+        if (!read_file(sw->second, disk)) fprintf(stderr, "cannot read disk %s\n", sw->second.c_str());
+        else {
+            disk_mount();
+            if (!opt.quiet) fprintf(stderr, "[sim] frame %u: disk '%s' mounted\n", frame, sw->second.c_str());
+        }
+    }
 }
 
 void Sim::write_png(uint32_t f)
@@ -401,6 +482,11 @@ int Sim::run()
     top->ps2_key = 0;
     for (int i = 0; i < 16; i++) clock();
     if (!load_rom()) return 2;
+    if (!opt.disk_file.empty()) {
+        if (!read_file(opt.disk_file, disk)) { fprintf(stderr, "cannot read disk %s\n", opt.disk_file.c_str()); return 2; }
+        disk_mount();
+        if (!opt.quiet) fprintf(stderr, "[sim] disk: '%s', %zu bytes\n", opt.disk_file.c_str(), disk.size());
+    }
     for (int i = 0; i < 16; i++) clock();
     top->reset = 0;
     fb.clear(); fb_h = 0; line.clear(); prev_hb = prev_vb = false; started = true;
@@ -433,6 +519,12 @@ int Sim::run()
             for (int i = 0; i < 0x8000; i++) { uint8_t v = top->rootp->top__DOT__pc8001__DOT__ram__DOT__mem[i]; fwrite(&v, 1, 1, fr); }
             fclose(fr);
         }
+    }
+    if (!opt.disk_out.empty() && !disk.empty()) {
+        FILE *fd = fopen(opt.disk_out.c_str(), "wb");
+        if (!fd) perror(opt.disk_out.c_str());
+        else { fwrite(disk.data(), 1, disk.size(), fd); fclose(fd); }
+        if (!opt.quiet) fprintf(stderr, "[sim] disk written to '%s'%s\n", opt.disk_out.c_str(), disk_written ? "" : " (unchanged)");
     }
     wav_close();
     if (flog) fclose(flog);

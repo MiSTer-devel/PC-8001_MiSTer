@@ -5,7 +5,8 @@
 // a byte (XM8's measurement on a PC-8801MA2 in its 4 MHz mode). The Z80's M1 cycles get one wait state (CSCP
 // PC88::get_m1_wait at 4 MHz).
 //
-// boot.rom (ioctl index 0): N-BASIC (24 KB) at 0000h, font.rom (2 KB) at 6000h.
+// boot.rom (ioctl index 0): N-BASIC (24 KB) at 0000h, font.rom (2 KB) at 6000h, and optionally disk.rom (the
+// PC-80S31's 2 KB firmware) at 6800h: with it the disk unit (rtl/pc80s31.sv) is connected at FCh-FFh.
 // Video: 14.318 MHz dot clock (clk_sys / 2); the line and frame come from the CRTC's parameters.
 
 module pc8001 #(
@@ -32,6 +33,32 @@ module pc8001 #(
 	input         ioctl_wr,
 	input  [24:0] ioctl_addr,
 	input   [7:0] ioctl_dout,
+
+	// the disk image (hps_io S0) and DDR3 for it
+	input         img_mounted,
+	input         img_readonly,
+	input  [63:0] img_size,
+	output [31:0] sd_lba,
+	output        sd_rd,
+	output        sd_wr,
+	input         sd_ack,
+	input   [8:0] sd_buff_addr,
+	input   [7:0] sd_buff_dout,
+	output  [7:0] sd_buff_din,
+	input         sd_buff_wr,
+	input         ddr_busy,
+	output  [7:0] ddr_burstcnt,
+	output [28:0] ddr_addr,
+	input  [63:0] ddr_dout,
+	input         ddr_dout_ready,
+	output        ddr_rd,
+	output [63:0] ddr_din,
+	output  [7:0] ddr_be,
+	output        ddr_we,
+	output        disk_unit,      // DISK.ROM loaded
+	output        disk_ready,
+	output        disk_too_big,
+	output        disk_motor,
 
 	output        ce_pix,
 	output  [7:0] R, G, B,
@@ -185,7 +212,7 @@ wire io_wr = ~iorq_n & ~wr_n & m1_n;
 reg  [7:0] port30 = 0;     // bit 0: 80 columns, 1: mono, 2: CDS, 3: motor, 5-4: 8251 rate / RS-232C
 reg        beep_on = 0;    // port 40h bit 5
 wire       vrtc;
-wire [7:0] crtc_dout, dma_dout, kbd_dout, usart_dout;
+wire [7:0] crtc_dout, dma_dout, kbd_dout, usart_dout, disk_dout;
 wire       cmt_dcd;
 
 reg old_io_wr = 0;
@@ -212,6 +239,7 @@ always @(*) begin
 	8'h4?:   io_dout = {2'b00, vrtc, 2'b00, cmt_dcd, 2'b00};   // 5 VRTC, 2 CMT carrier (4 RTC, 3 /EXTON, 1 ACK, 0 BUSY)
 	8'h50, 8'h51: io_dout = crtc_dout;
 	8'h6?:   io_dout = dma_dout;
+	8'hFC, 8'hFD, 8'hFE, 8'hFF: io_dout = disk_dout;   // the disk unit's 8255 (FFh without DISK.ROM)
 	default: io_dout = 8'hFF;
 	endcase
 end
@@ -350,6 +378,67 @@ pc8001_cmt cmt
 	.too_big(tape_too_big),
 	.position(tape_position),
 	.length(tape_length)
+);
+
+//----------------------------------------------------------------------------
+// PC-80S31 disk unit
+//----------------------------------------------------------------------------
+
+wire disk_rom_wr = rom_dl & ioctl_wr & (ioctl_addr[24:11] == 14'h0D);   // 6800h-6FFFh
+reg  disk_rom_ok = 0;
+reg  old_rom_dl = 0;
+always @(posedge clk_sys) begin
+	old_rom_dl <= rom_dl;
+	if (rom_dl & ~old_rom_dl) disk_rom_ok <= 0;
+	else if (disk_rom_wr) disk_rom_ok <= 1;
+end
+assign disk_unit = disk_rom_ok;
+
+pc80s31 disk
+(
+	.clk(clk_sys),
+	.reset(cpu_reset),
+	.rom_wr(disk_rom_wr),
+	.rom_addr(ioctl_addr[10:0]),
+	.rom_d(ioctl_dout),
+	.rom_ok(disk_rom_ok),
+	.addr(A[1:0]),
+	.rd(dbg_io_rd & (A[7:2] == 6'b111111)),
+	.wr(dbg_io_wr & (A[7:2] == 6'b111111)),
+	.din(cpu_dout),
+	.dout(disk_dout),
+	.img_mounted(img_mounted),
+	.img_readonly(img_readonly),
+	.img_size(img_size),
+	.sd_lba(sd_lba),
+	.sd_rd(sd_rd),
+	.sd_wr(sd_wr),
+	.sd_ack(sd_ack),
+	.sd_buff_addr(sd_buff_addr),
+	.sd_buff_dout(sd_buff_dout),
+	.sd_buff_din(sd_buff_din),
+	.sd_buff_wr(sd_buff_wr),
+	.ddr_busy(ddr_busy),
+	.ddr_burstcnt(ddr_burstcnt),
+	.ddr_addr(ddr_addr),
+	.ddr_dout(ddr_dout),
+	.ddr_dout_ready(ddr_dout_ready),
+	.ddr_rd(ddr_rd),
+	.ddr_din(ddr_din),
+	.ddr_be(ddr_be),
+	.ddr_we(ddr_we),
+	.ext_sel(1'b0),
+	.ext_m_addr(20'd0),
+	.ext_m_rd(1'b0),
+	.ext_m_we(1'b0),
+	.ext_m_d(8'd0),
+	.ext_m_q(),
+	.ext_m_done(),
+	.ext_m_ready(),
+	.ext_m_wprot(),
+	.disk_ready(disk_ready),
+	.disk_too_big(disk_too_big),
+	.motor(disk_motor)
 );
 
 // colour index bits: 0 blue, 1 red, 2 green

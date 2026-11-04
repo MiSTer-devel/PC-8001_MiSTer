@@ -29,7 +29,7 @@ assign USER_OUT = '1;
 assign {UART_RTS, UART_TXD, UART_DTR} = 0;
 assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 assign {SDRAM_DQ, SDRAM_A, SDRAM_BA, SDRAM_CLK, SDRAM_CKE, SDRAM_DQML, SDRAM_DQMH, SDRAM_nWE, SDRAM_nCAS, SDRAM_nRAS, SDRAM_nCS} = 'Z;
-assign {DDRAM_CLK, DDRAM_BURSTCNT, DDRAM_ADDR, DDRAM_DIN, DDRAM_BE, DDRAM_RD, DDRAM_WE} = '0;
+assign DDRAM_CLK = clk_sys;   // the disk image (rtl/d88_media.sv)
 
 assign VGA_SL = 0;
 assign VGA_F1 = 0;
@@ -42,7 +42,7 @@ assign HDMI_BOB_DEINT = 0;
 assign AUDIO_S = 0;
 assign AUDIO_MIX = 0;
 
-assign LED_DISK = 0;
+assign LED_DISK = {1'b0, disk_motor};
 assign LED_POWER = 0;
 assign BUTTONS = 0;
 
@@ -63,6 +63,8 @@ localparam int TURBO = 5;
 localparam CONF_STR = {
 	"PC8001;;",
 	"-;",
+	// PC-80S31 disk unit, when boot.rom has disk.rom: a .d88 image, written back as the drive changes it
+	"S0,D88,Disk;",
 	// The whole image is loaded into the core; not remembered (F, not FC), so a core start has no tape.
 	"F1,CMTT88,Tape;",
 	"F0,ROM,Load ROM;",
@@ -82,7 +84,7 @@ localparam CONF_STR = {
 	"P2O[122:121],Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
 	"P2O[5],Tape overlay,On,Off;",
 
-	"I,Tape ready (rewound),Tape too large (64 KB max);",
+	"I,Tape ready (rewound),Tape too large (64 KB max),Disk too large (512 KB max),No disk unit (boot.rom without disk.rom);",
 	"v,0;",
 	"V,v",`BUILD_DATE
 };
@@ -98,7 +100,14 @@ wire         ioctl_wr;
 wire  [26:0] ioctl_addr;
 wire   [7:0] ioctl_dout;
 
-hps_io #(.CONF_STR(CONF_STR)) hps_io
+wire        img_mounted, img_readonly, sd_rd, sd_wr, sd_ack, sd_buff_wr;
+wire [63:0] img_size;
+wire [31:0] sd_lba;
+wire  [8:0] sd_buff_addr;
+wire  [7:0] sd_buff_dout, sd_buff_din;
+wire        disk_unit, disk_ready, disk_too_big, disk_motor;
+
+hps_io #(.CONF_STR(CONF_STR), .VDNUM(1)) hps_io
 (
 	.clk_sys(clk_sys),
 	.HPS_BUS(HPS_BUS),
@@ -120,7 +129,20 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 	.ioctl_wr(ioctl_wr),
 	.ioctl_addr(ioctl_addr),
 	.ioctl_dout(ioctl_dout),
-	.ioctl_wait(1'b0)
+	.ioctl_wait(1'b0),
+
+	.img_mounted(img_mounted),
+	.img_readonly(img_readonly),
+	.img_size(img_size),
+	.sd_lba('{sd_lba}),
+	.sd_blk_cnt('{6'd0}),
+	.sd_rd(sd_rd),
+	.sd_wr(sd_wr),
+	.sd_ack(sd_ack),
+	.sd_buff_addr(sd_buff_addr),
+	.sd_buff_dout(sd_buff_dout),
+	.sd_buff_din('{sd_buff_din}),
+	.sd_buff_wr(sd_buff_wr)
 );
 
 
@@ -175,6 +197,31 @@ pc8001 #(.TURBO(TURBO)) pc8001
 	.ioctl_addr(ioctl_addr[24:0]),
 	.ioctl_dout(ioctl_dout),
 
+	.img_mounted(img_mounted),
+	.img_readonly(img_readonly),
+	.img_size(img_size),
+	.sd_lba(sd_lba),
+	.sd_rd(sd_rd),
+	.sd_wr(sd_wr),
+	.sd_ack(sd_ack),
+	.sd_buff_addr(sd_buff_addr),
+	.sd_buff_dout(sd_buff_dout),
+	.sd_buff_din(sd_buff_din),
+	.sd_buff_wr(sd_buff_wr),
+	.ddr_busy(DDRAM_BUSY),
+	.ddr_burstcnt(DDRAM_BURSTCNT),
+	.ddr_addr(DDRAM_ADDR),
+	.ddr_dout(DDRAM_DOUT),
+	.ddr_dout_ready(DDRAM_DOUT_READY),
+	.ddr_rd(DDRAM_RD),
+	.ddr_din(DDRAM_DIN),
+	.ddr_be(DDRAM_BE),
+	.ddr_we(DDRAM_WE),
+	.disk_unit(disk_unit),
+	.disk_ready(disk_ready),
+	.disk_too_big(disk_too_big),
+	.disk_motor(disk_motor),
+
 	.ce_pix(ce_pix),
 	.R(R), .G(G), .B(B),
 	.HSync(HSync), .VSync(VSync),
@@ -189,13 +236,19 @@ pc8001 #(.TURBO(TURBO)) pc8001
 // One OSD message per tape download: ready (rewound), or cut off at 64 KB
 reg       tape_info_req = 0;
 reg [7:0] tape_info = 0;
-reg       old_tape_dl = 0;
+reg       old_tape_dl = 0, old_mount = 0;
 always @(posedge clk_sys) begin
 	old_tape_dl <= ioctl_download && ioctl_index[5:0] == 6'd1;
 	tape_info_req <= 0;
 	if (old_tape_dl && !(ioctl_download && ioctl_index[5:0] == 6'd1)) begin
 		tape_info <= tape_too_big ? 8'd2 : 8'd1;
 		tape_info_req <= 1;
+	end
+	// a disk mounted: too large, or no unit to put it in
+	old_mount <= img_mounted;
+	if (old_mount && !img_mounted && img_size != 0) begin
+		if (!disk_unit) begin tape_info <= 8'd4; tape_info_req <= 1; end
+		else if (img_size > 64'd524288) begin tape_info <= 8'd3; tape_info_req <= 1; end
 	end
 end
 

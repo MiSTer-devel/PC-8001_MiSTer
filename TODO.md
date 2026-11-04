@@ -58,9 +58,16 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
 - [ ] More titles: Galaxian, Slot Machine, Dig Dug (Year-Based .cmt); machine-code games started from MON.
 
 ## 3. Disk unit (PC-80S31)
-- [ ] 8255 link at FCh-FFh to the sub system: Z80 + 8255 + uPD765 + disk.rom (from pc6031.sv / PC88 SUBunit).
-- [ ] d88_media.sv in DDR3, 2D images, two drives.
-- [ ] N-BASIC system disk, Block Kuzushi, Heiankyo Alien boot.
+- [x] rtl/pc80s31.sv (the PC-6001 core's pc6031.sv: Z80 + disk.rom, 16 KB, uPD765, two cross-wired 8255s) at
+      FCh-FFh; upd765_lite.sv, d88_media.sv (DDR3, up to 512 KB: 2D), i8255_m0.sv. disk.rom at 6800h of
+      boot.rom connects the unit (tools/make_boot_rom.sh adds it when present); without it FCh-FFh read FFh.
+- [x] OSD Disk (S0, D88, written back), LED, "Disk too large" / "No disk unit" messages; sim --disk,
+      --disk-unit, --swap-disk F:FILE, --disk-out; tools/cscp_cmp.sh DISK= / SWAP=.
+- [x] N-BASIC system disk (PC-8034-2W) boots to "How many files": identical to CSCP. Block Kuzushi: boot
+      the system disk, swap, MOUNT, RUN"BLOCK" plays.
+- [ ] Heiankyo Alien: find how it starts (track 0 is blank like Block Kuzushi's?).
+- [ ] Second drive (the PC-80S31 has two; upd765_lite has drive 0 only).
+- [ ] Boot time with the unit and no disk (CSCP ~1100 frames): compare.
 
 ## 4. PC-8001 options
 - [ ] PCG-8100: programmable characters and its sound (Galaxian PCG, The Dusty World).

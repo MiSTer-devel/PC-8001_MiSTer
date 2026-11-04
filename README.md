@@ -70,9 +70,13 @@ These are not in a MAME-named set, but are inside the downloaded software sets (
 
 ## Status
 
-2026-11-03: phase 0 (TODO.md). The skeleton core boots N-BASIC to "Ok" in the Verilator sim, with a stand-in text
-screen; next is the real uPD3301 CRTC and uPD8257 DMA (phase 1).
+2026-11-03 (TODO.md): phases 0-3. Text screen (uPD3301 + uPD8257), keyboard, cassette (.cmt/.t88, turbo) and the
+PC-80S31 disk unit (.d88). Every compared screen is pixel-identical to CSCP (tools/cscp_suite.sh). Not yet tried
+on a MiSTer.
 
-- boot.rom: `tools/make_boot_rom.sh refs/emulators/mame_roms/pc8001 rom/boot.rom` (= `cat n80v110.rom font.rom`).
+- boot.rom: `tools/make_boot_rom.sh refs/emulators/mame_roms/pc8001 rom/boot.rom` (= `cat n80v110.rom font.rom
+  disk.rom`; leave disk.rom out for a machine without the disk unit).
+- Compare with CSCP: `tools/cscp_cmp.sh NAME FRAMES 'TEXT'` (DISK=, SWAP=, TAPE=, TEXT2= options), all cases:
+  `tools/cscp_suite.sh`.
 - Sim: `cd verilator && make && ./obj_dir_headless/Vtop --stop-at-frame 250 --screenshot 250`; `./run_tests.sh`.
 - MAME frames: `tools/mame_ref.sh pc8001 runs/mame/boot 100,300 ['300:PRINT 1\n']`.
