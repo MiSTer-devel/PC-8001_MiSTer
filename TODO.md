@@ -131,7 +131,8 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
 - [x] Audio on hardware (misterkvms-cli record x.wav): beep 2400 Hz; YM2203 FM 261 Hz / SSG 879 Hz as CSCP. The sim's
       --wav matches the hardware recording (levels within ~5%). The SR mix was rebalanced to CSCP's (beep and PCG
       halved on the SR, SSG x 11/16): FM/beep 0.78, SSG/beep 0.68 (CSCP 0.80, 0.68). tools/audio_tones.py.
-- [ ] PCG-8100 sound on hardware and vs CSCP (pitch fixed with pit_ce).
+- [x] PCG-8100 sound vs CSCP: 3994 Hz for count 1000 in both; a channel now as loud as the beep (CSCP 0.98).
+- [ ] PCG-8100 sound on hardware.
 - [ ] Host-injected typing (KVMS) in JP mode sometimes loses SHIFT on the second of two shifted keys: SHIFT and
       the key arrive together and BASIC reads SHIFT apart from the scan (as kbd_us's settle, not applied in JP).
 - [ ] Tester zip under 20 MB (core, boot.rom recipes, curated software).

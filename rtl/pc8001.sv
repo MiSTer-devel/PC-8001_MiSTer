@@ -630,11 +630,11 @@ jt03 opn
 
 // unsigned: the beeper, the PCG's three channels, and (SR) the SSG (0..1023 x 16) and FM (/ 4, centred 2000h)
 // Mix balance as CSCP's SR (beep : FM : SSG amplitudes ~ 1 : 1.05 : 0.89, measured on the same tones): on the
-// SR the beep and PCG are halved, SSG x 11/16. Unsigned sum (max ~57 K).
+// SR the beep and PCG are halved, SSG x 11/16. Unsigned sum (max ~64 K with all three PCG channels on).
 wire [15:0] opn_mix = sr ? ({3'd0, opn_psg, 3'd0} + {5'd0, opn_psg, 1'd0} + {6'd0, opn_psg}) +
                            {2'b00, ~opn_fm[15], opn_fm[14:2]} : 16'd0;
 wire [15:0] beep_lv = sr ? 16'h1000 : 16'h2000;
-wire [15:0] pcg_lv  = sr ? 16'h0C00 : 16'h1800;
+wire [15:0] pcg_lv  = sr ? 16'h1000 : 16'h2000;   // a PCG channel as loud as the beep (CSCP: 0.98)
 assign audio = ((beep_on & beep_sq) ? beep_lv : 16'h0000) + (pcg_snd[0] ? pcg_lv : 16'h0000) +
                (pcg_snd[1] ? pcg_lv : 16'h0000) + (pcg_snd[2] ? pcg_lv : 16'h0000) + opn_mix;
 
