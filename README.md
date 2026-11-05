@@ -70,18 +70,25 @@ These are not in a MAME-named set, but are inside the downloaded software sets (
 
 ## Status
 
-2026-11-04 (TODO.md): phases 0-4. Text screen (uPD3301 + uPD8257), keyboard (JIS positions or US
+2026-11-04 (TODO.md): phases 0-5. Text screen (uPD3301 + uPD8257), keyboard (JIS positions or US
 symbols), cassette (.cmt/.t88, turbo), the PC-80S31 disk unit (two drives, .d88 on S0/S1), PCG-8100
 (programmable characters and its 8253 sound), the uPD1990A clock (time from the MiSTer) and an expansion ROM
-at 6000h. The printer port takes every byte (BUSY never set) and drops it; the sim can save it (--printer). Every compared
-screen is pixel-identical to CSCP (tools/cscp_suite.sh). Not yet tried on a MiSTer.
+at 6000h. The printer port takes every byte (BUSY never set) and drops it; the sim can save it (--printer).
+PC-8001mkII (OSD Model): N80-BASIC or N-BASIC (OSD mkII mode), 64 KB RAM, 16 KB graphics (640x200 in the text's
+colours, 640x200 mono, 320x200 4 colours, background colour), mode 2 interrupts, the kanji ROM. Every
+compared screen is pixel-identical to CSCP (tools/cscp_suite.sh). Not yet tried on a MiSTer.
 
-OSD: Drive 1 / Drive 2 (.d88), Tape (.cmt/.t88), Load ROM (boot.rom), Expansion ROM (8 KB at 6000h, resets); Machine: Memory 32/16 KB, PCG-8100,
-Keyboard JP/US, Tape speed, Rewind; Video: aspect ratio, tape overlay. Memory and PCG-8100 apply at reset.
+OSD: Drive 1 / Drive 2 (.d88), Tape (.cmt/.t88), Load ROM (boot.rom), Expansion ROM (8 KB at 6000h, resets); Machine: Model
+PC-8001 / PC-8001mkII, mkII mode N80 / N, Memory 32/16 KB, PCG-8100, Keyboard JP/US, Tape speed, Rewind; Video:
+aspect ratio, tape overlay. Model, mode, memory and PCG-8100 apply at reset.
 
 - boot.rom: `tools/make_boot_rom.sh refs/emulators/mame_roms/pc8001 rom/boot.rom` (= `cat n80v110.rom font.rom
   disk.rom`; leave disk.rom out for a machine without the disk unit).
-- Compare with CSCP: `tools/cscp_cmp.sh NAME FRAMES 'TEXT'` (DISK=, DISK2=, SWAP=, SWAP2=, TAPE=, TEXT2= options), all cases:
+- boot1.rom (the mkII, beside boot.rom): `tools/make_boot1_rom.sh refs/emulators/mame_roms/pc8001mk2 rom/boot1.rom`
+  (= `cat n80_2.rom kanji1.rom`). Main loads it at the core's start; it is kept in DDR3 and copied in at a reset
+  when the model changes (rtl/rom_store.sv).
+- Compare with CSCP: `tools/cscp_cmp.sh NAME FRAMES 'TEXT'` (DISK=, DISK2=, SWAP=, SWAP2=, TAPE=, TEXT2=, MODEL=mk2,
+  NMODE=1 options), all cases:
   `tools/cscp_suite.sh`.
 - Sim: `cd verilator && make && ./obj_dir_headless/Vtop --stop-at-frame 250 --screenshot 250`; `./run_tests.sh`.
 - MAME frames: `tools/mame_ref.sh pc8001 runs/mame/boot 100,300 ['300:PRINT 1\n']`.

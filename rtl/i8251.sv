@@ -27,13 +27,15 @@ module i8251
 	output reg  [7:0] mode = 8'h00,
 	output reg  [7:0] command = 8'h00,
 	output reg        tx_stb = 0,
-	output reg  [7:0] tx_byte = 0
+	output reg  [7:0] tx_byte = 0,
+	output            rxrdy           // the RxRDY pin (status bit 1, while the receiver is enabled)
 );
 
 reg       mode_next = 1;     // the next 21h write is the mode
 reg [7:0] rx_data = 0;
 reg       rx_rdy = 0, oe = 0;
 
+assign rxrdy = rx_rdy & command[2];
 assign dout = io_a0 ? {dsr, 2'b00, oe, 1'b0, 1'b1, rx_rdy, 1'b1} : rx_data;
 
 always @(posedge clk) begin

@@ -56,7 +56,8 @@ assign VIDEO_ARY = (!ar) ? 12'd3 : 12'd0;
 // OSD per ~/dev2/osd-standard.md: media on the top page, then Machine, Video and Input pages. Settings take effect
 // at the next reset (cfg); "Changes pending" shows until then.
 // Tape per ~/dev2/tape-standard.md: Tape speed and Tape overlay act at once (out of "Changes pending").
-// Status bits: 0 reset, 1 memory, 3 rewind tape, 4 tape speed, 5 tape overlay, 121-122 aspect ratio.
+// Status bits: 0 reset, 1 memory, 3 rewind tape, 4 tape speed, 5 tape overlay, 6 PCG, 7 keyboard, 8-9 model,
+// 10 mkII mode, 121-122 aspect ratio.
 `include "build_id.v"
 // Tape turbo factor: the Z80 and the deck run TURBO times as fast while the deck plays (rtl/pc8001.sv)
 localparam int TURBO = 5;
@@ -77,7 +78,9 @@ localparam CONF_STR = {
 	"h0-,Changes pending;",
 	"R[0],Apply and reset;",
 
-	"P1O[1],Memory,32 KB,16 KB;",
+	"P1O[9:8],Model,PC-8001,PC-8001mkII;",
+	"P1O[10],mkII mode,N80-BASIC,N-BASIC;",
+	"P1O[1],Memory (PC-8001),32 KB,16 KB;",
 	"P1O[6],PCG-8100,Off,On;",
 	"P1O[7],Keyboard,JP (positions),US (symbols);",
 	"P1-;",
@@ -100,6 +103,7 @@ wire  [10:0] ps2_key;
 wire  [64:0] rtc;
 
 wire         ioctl_download;
+wire         ioctl_wait;
 wire   [7:0] ioctl_index;
 wire         ioctl_wr;
 wire  [26:0] ioctl_addr;
@@ -137,7 +141,7 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2)) hps_io
 	.ioctl_wr(ioctl_wr),
 	.ioctl_addr(ioctl_addr),
 	.ioctl_dout(ioctl_dout),
-	.ioctl_wait(1'b0),
+	.ioctl_wait(ioctl_wait),
 
 	.img_mounted(img_mounted),
 	.img_readonly(img_readonly),
@@ -169,7 +173,7 @@ wire reset = RESET | status[0] | buttons[1] | (ioctl_download & (ioctl_index[5:0
 // The settings the machine runs with, taken from the OSD at every reset
 reg [127:0] cfg;
 always @(posedge clk_sys) if (reset) cfg <= status;
-wire osd_pending = {status[6], status[1], status[122:121]} != {cfg[6], cfg[1], cfg[122:121]};
+wire osd_pending = {status[10:8], status[6], status[1], status[122:121]} != {cfg[10:8], cfg[6], cfg[1], cfg[122:121]};
 
 //////////////////////////////////////////////////////////////////
 
@@ -186,6 +190,8 @@ pc8001 #(.TURBO(TURBO)) pc8001
 (
 	.clk_sys(clk_sys),
 	.reset(reset),
+	.model(cfg[9:8]),
+	.n_mode(cfg[10]),
 	.ram16k(cfg[1]),
 	.pcg_on(cfg[6]),
 	.rtc(rtc),
@@ -207,6 +213,7 @@ pc8001 #(.TURBO(TURBO)) pc8001
 	.ioctl_wr(ioctl_wr),
 	.ioctl_addr(ioctl_addr[24:0]),
 	.ioctl_dout(ioctl_dout),
+	.ioctl_wait(ioctl_wait),
 
 	.img_mounted(img_mounted),
 	.img_readonly(img_readonly),

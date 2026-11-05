@@ -30,7 +30,8 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       40,25, COLOR in colour mode, PSET semigraphics, CHR$(0-255) in 40 and 80 columns.
 - [ ] Not compared yet: blinking (attribute and cursor phase), reverse display (start display bit 0), DMA
       underrun, non-transparent mode, a running game's timing (BUSREQ per row vs CSCP's per line).
-- [x] US keyboard layout option (OSD Keyboard = US, sim --kbd-us): identical to CSCP (kbdus).
+- [x] US keyboard layout option (OSD Keyboard = US, sim --kbd-us): identical to CSCP (kbdus). A symbol whose
+      SHIFT differs from the held SHIFT waits 50 ms for BASIC to see the new SHIFT (else US ^ @ : were lost).
 - [ ] Disk-unit check: with FCh-FFh reading FFh the ROM waits ~2.7 s before BASIC (CSCP, with an 8255
       always present, does not). Settled by the disk unit (phase 3) or by what a bare PC-8001 reads there.
 - [x] Clocks: CPU 3.9936 MHz (15.9744 MHz / 4: PC-8001B manual, parts list), dot 14.31818 MHz
@@ -94,11 +95,21 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       (checked with a test ROM, sim --ext-rom).
 
 ## 5. PC-8001mkII (Model option)
-- [ ] boot.rom layout per model (as the PC-6001's boot1-3.rom); mkII ROM n80_2.rom; MAME mkII frames.
-- [ ] 64 KB RAM, ROM/RAM switching (31h, E2h), N/N80 DIP on the OSD, 31h bit 0 sense (sources disagree).
-- [ ] GVRAM 16 KB at 8000-BFFF (5Ch/5Fh): 640x200 mono / attribute colour, 320x200 4 colours, over the text.
-- [ ] IM2 interrupts (E4h, E6h: RTC, VRTC, 8251), kanji ROM E8h-EBh in DDR3.
-- [ ] Boot screen Ver 1.3 matches MAME; Monster House, Mario Bros. Special.
+Spec: refs/docs/MK2_NOTES.md (CSCP's model). CSCP comparisons: MODEL=mk2 tools/cscp_cmp.sh (build pc8001mk2).
+- [x] boot1.rom (n80_2.rom + kanji1.rom, ioctl 40h) kept in DDR3 (rtl/rom_store.sv, rtl/ddr_arb.sv with the
+      disk unit); the 32 KB main ROM copied in at a reset when the model changed. OSD Model, mkII mode N80/N.
+      Boot (N80 and N) identical to CSCP.
+- [x] 64 KB RAM: 0000-7FFF over the ROM by 31h bit 1 or E2h bits 0/4; 30h reads the N/N80 switch, 31h B9h,
+      E2h inverted (as CSCP).
+- [x] GVRAM 16 KB at 8000-BFFF (5Ch/5Fh); 640x200 in the text's colours, 640x200 mono, 320x200 4 colours,
+      background colour (31h bits 7-5), 53h text / graphics off: identical to CSCP (mk2g09/1d/4d/29). 68-clock
+      GVRAM wait with graphics on in the active display.
+- [x] IM2 interrupts: RxRDY (0), VRTC (1), 600 Hz timer (2); E4h level mask, E6h source enables. Kanji ROM
+      E8h/E9h from DDR3 (the CPU waits for it).
+- [x] Interrupts and kanji reads identical to CSCP (mk2int, tools/mk2int_asm.py: 596 timer and 60 VRTC
+      interrupts over 60 frames; kanji 0904h and 4321h).
+- [ ] mkII software: Monster House, Mario Bros. Special; N80-BASIC graphics commands (SCREEN, LINE).
+- [ ] Ver 1.3 boot screen (MAME) vs CSCP's Ver 1.0: which ROM.
 
 ## 6. PC-8001mkIISR (Model option)
 - [ ] MAME SR reference frames (fonthira.rom found 2026-11-03; MAME boots to Ver 1.6).

@@ -23,4 +23,15 @@ $T kbdus  700    'print "!#$%&()=-^@[];:,./<>?+*_"\n' -- --kbd-us        || rc=1
 D="$Y/BASIC/PC-8001/N-BASIC System Disk PC-8034-2W.d88"
 AT=1500 DISK="$D" DISK2="$Y/1979/PC-8001/Block Kuzushi (1979)(ASCII).d88" TEXT2='2000:mount 2:run"2:BLOCK"\n' \
 	$T block2 6000,9000 '2\n' || rc=1
+# PC-8001mkII
+MODEL=mk2 $T mk2boot  300,600                                            || rc=1
+MODEL=mk2 NMODE=1 $T mk2n 300,600                                        || rc=1
+MODEL=mk2 $T mk2print 900  'print 1+1\nfiles\n'                           || rc=1
+# graphics: machine code (DI) fills GVRAM with its address's low byte, sets 31h and spins: 09h 640 attribute,
+# 1Dh 320x200 4 colours + blue, 4Dh mono on red, 29h attribute on blue
+for v in 09 1d 4d 29; do
+	MODEL=mk2 $T mk2g$v 4400 "10 for i=0 to 23:read a:poke &hc000+i,a:next\n20 data &hf3,&hd3,&h5c,&h21,0,&h80,1,&h80,&h3e,&h75,&h23,&h0b,&h78,&hb1,&h20,&hf9,&hd3,&h5f,&h3e,&h$v,&hd3,&h31,&h18,&hfe\n30 def usr=&hc000:a=usr(0)\nrun\n" -- --type-rate 6:6 || rc=1
+done
+# interrupts and kanji: tools/mk2int_asm.py counts timer and VRTC interrupts over 60 frames; then kanji ROM reads
+MODEL=mk2 $T mk2int 7600 "10 a\$=\"F33EC1ED47ED5E2140C02204C1214AC02202C12100002200C22202C2CD33C03E03D3E4D3E6FB063CCD33C010FBF3AFD3E6FBC9DB40E62020FADB40E62028FAC9E52A00C2232200C21808E52A02C2232202C2F53E03D3E4F1E1FBED4D\"\n20 for i=0 to len(a\$)/2-1:poke &hc000+i,val(\"&h\"+mid\$(a\$,i*2+1,2)):next\n30 def usr=&hc000:x=usr(0):out &he8,4:out &he9,9:print peek(&hc200)+256*peek(&hc201);peek(&hc202)+256*peek(&hc203);inp(&he8);inp(&he9);:out &he8,&h21:out &he9,&h43:print inp(&he8);inp(&he9)\nrun\n" -- --type-rate 6:6 || rc=1
 exit $rc

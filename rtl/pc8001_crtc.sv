@@ -50,6 +50,13 @@ module pc8001_crtc
 	output            dma_adv,      // read the byte at the channel's address now
 	input       [7:0] dma_q,
 
+	// PC-8001mkII graphics (CSCP PC88::draw_screen): 640x200, 80 bytes a line, MSB on the left
+	input             mk2,
+	input       [7:0] gmode,        // port 31h: 2 mono 640 (320: blue), 3 graphics on, 4 320x200, 7-5 background G R B
+	input       [1:0] dmask,        // port 53h: 0 text off, 1 graphics off
+	output reg [13:0] gv_addr,
+	input       [7:0] gv_q,         // one clock after gv_addr
+
 	output            vrtc,
 	output reg  [2:0] rgb,          // G R B... as {G, R, B}
 	output            hblank,
@@ -82,6 +89,12 @@ reg  [2:0] cmd = 0;
 reg  [2:0] pcnt = 0;
 
 wire ve = status[4];
+
+// mkII graphics mode, taken at each frame's end: {320x200, mono 640, graphics on, text off, blue}
+reg  [4:0] gm = 0;
+wire       g320 = mk2 & gm[4];
+wire       gmono = mk2 & ~gm[4] & gm[3];
+wire       gattr = mk2 & ~gm[4] & ~gm[3];      // 640x200 in the text's colours
 
 assign dout = status[3] ? (status & 8'hEF) : status;
 
@@ -332,7 +345,7 @@ always @(*) begin
 	if (~w80) pat = hc[0] ? {pat[3], pat[3], pat[2], pat[2], pat[1], pat[1], pat[0], pat[0]}
 	                      : {pat[7], pat[7], pat[6], pat[6], pat[5], pat[5], pat[4], pat[4]};
 	if ((ca[2] & lc == 5'd0) | (ca[3] & lc >= 5'd7)) pat = 8'hFF;
-	if (ca[0]) pat = ~pat;
+	if (ca[0] & ~gattr) pat = ~pat;
 end
 
 wire cur_hit = cur_on & (row == cur_y) & (src == cur_x) & ~(cur_type[0] & blink_cur);
@@ -358,6 +371,51 @@ always @(posedge clk) begin
 	end
 end
 
-always @(*) rgb = (shifter[7] & ~hblank & ~vblank) ? col : 3'd0;
+//----------------------------------------------------------------------------
+// mkII graphics: the byte under each cell, fetched with it; the mode taken at each frame's end (CSCP's
+// snapshot at vblank), the background colour at each line (raster colour changes)
+//----------------------------------------------------------------------------
+
+reg  [7:0] gline = 0;               // displayed line, 0-199
+reg  [2:0] bg = 0;
+always @(posedge clk) if (ce_pix) begin
+	if (frame_end) gline <= 0;
+	else if (line_end & (row < L) & (gline != 8'd255)) gline <= gline + 1'd1;
+	if (line_end) bg <= mk2 ? gmode[7:5] : 3'd0;
+	if (line_end & (row == L)) gm <= {gmode[4], gmode[2], gmode[3] & ~dmask[1], dmask[0], gmode[2]};
+end
+
+reg  [7:0] gb = 0, next_g = 0, gcur = 0;
+reg        next_rev = 0, crev = 0;
+reg  [2:0] next_acol = 0, acol = 0;   // the cell's own colour (attribute mode)
+
+always @(posedge clk) begin
+	if (sub == 4'd0) gv_addr <= {gline[7:0], 6'd0} + {gline[7:0], 4'd0} + {7'd0, hc};   // gline x 80 + hc
+	if (sub == 4'd2) gb <= (mk2 & gm[2] & (gline < 8'd200)) ? gv_q : 8'h00;
+	if (sub == 4'd5) begin
+		next_rev <= gattr & ca[0];
+		next_acol <= ca[7:5] | {3{mono}};
+		next_g <= (gattr & ca[0]) ? ~gb : gb;
+	end
+	if (ce_pix & (dot == 3'd7)) begin
+		gcur <= next_g;
+		crev <= next_rev;
+		acol <= next_acol;
+	end
+end
+
+// attribute mode, reverse cells: the character un-reversed in black, the graphics byte inverted (CSCP)
+wire       tpix = shifter[7] & ~(mk2 & gm[1]);
+wire       gpix = gcur[~dot];
+wire [1:0] gi = gcur[{~dot[2:1], 1'b1} -: 2];
+reg  [2:0] pix;
+always @(*) begin
+	if (~mk2)          pix = shifter[7] ? col : 3'd0;
+	else if (g320)     pix = tpix ? col : (gi == 2'd3) ? bg : (~gm[2] & gi == 2'd0) ? 3'd0 : {gi[1], gi[0], gm[0]};
+	else if (gmono)    pix = tpix ? col : gpix ? bg : 3'd0;
+	else               pix = tpix ? (crev ? 3'd0 : col) : gpix ? ((acol == 3'd0) ? bg : acol) : bg;
+end
+
+always @(*) rgb = (~hblank & ~vblank) ? pix : 3'd0;
 
 endmodule

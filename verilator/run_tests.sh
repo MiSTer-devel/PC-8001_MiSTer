@@ -28,6 +28,8 @@ Y=../refs/software/archive_org/yearbased_pc8001_unpacked
 run tape_t88 1400 --tape-turbo --tape "$Y/1983/PC-8001/River Patrol (1983)(Micom BASIC).t88" --type '300:cload"river"\n' --type '1200:list 100-300\n'
 run tape_mon 1300 --tape-turbo --tape "$Y/1982/PC-8001/Kumo Vader (1982)(Micom BASIC).cmt" --type '300:cload"KUMO"\n' --type '800:mon\n{WAIT30}l\n'
 run disk_boot 900 --disk "$Y/BASIC/PC-8001/N-BASIC System Disk PC-8034-2W.d88"
+run mk2boot  600 --mk2
+run mk2n     600 --mk2 --n-mode
 python3 -I tests/make_ext_rom.py out/tests/ext.rom
 run ext_rom  400 --ext-rom out/tests/ext.rom
 # printer: the bytes LPRINT and LLIST send

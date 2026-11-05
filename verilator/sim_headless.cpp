@@ -47,6 +47,9 @@ struct Options {
     std::string dump_ram;                 // --dump-ram FILE: the 32 KB at 8000h at the end
     bool        ram16k = false;
     bool        pcg = false;              // --pcg: PCG-8100 connected
+    int         model = 0;                // --mk2: 1 (OSD Model PC-8001mkII)
+    bool        n_mode = false;           // --n-mode: the mkII's N-BASIC switch
+    std::string mk2_dir = "../refs/emulators/mame_roms/pc8001mk2";   // --mk2-dir: n80_2.rom, kanji1.rom
     bool        kbd_us = false;
     std::set<uint32_t> resets;            // --reset-at FRAME
     std::string wav_file;                 // --wav
@@ -73,6 +76,8 @@ static void usage()
 "                         --basic FILE / --font FILE\n"
 "  --ram16k               16 KB RAM (C000-FFFF) instead of 32 KB\n"
 "  --pcg                  PCG-8100 connected\n"
+"  --mk2                  PC-8001mkII (boot1.rom = DIR/n80_2.rom + DIR/kanji1.rom, --mk2-dir DIR); --n-mode:\n"
+"                         its N-BASIC switch\n"
 "  --kbd-us               keyboard: US symbols (OSD Keyboard = US)\n"
 "  --ext-rom FILE         expansion ROM at 6000h (OSD Expansion ROM)\n"
 "  --printer FILE         write the bytes sent to the printer to FILE\n"
@@ -140,11 +145,14 @@ static bool parse_args(int argc, char **argv, Options &o)
         else if (a == "--trace-io") o.io_file = next();
         else if (a == "--trace-from") o.trace_from = parse_num(next());
         else if (a == "--trace-to") o.trace_to = parse_num(next());
-        else if (a == "--rom-dir") { std::string d = next(); o.basic_rom = d + "/n80v110.rom"; o.font_rom = d + "/font.rom"; o.disk_rom = d + "/disk.rom"; }
+        else if (a == "--rom-dir") { std::string d = next(); o.basic_rom = d + "/n80v110.rom"; o.font_rom = d + "/font.rom"; o.disk_rom = d + "/disk.rom"; o.mk2_dir = d + "mk2"; }
         else if (a == "--basic") o.basic_rom = next();
         else if (a == "--font") o.font_rom = next();
         else if (a == "--ram16k") o.ram16k = true;
         else if (a == "--pcg") o.pcg = true;
+        else if (a == "--mk2") o.model = 1;
+        else if (a == "--n-mode") o.n_mode = true;
+        else if (a == "--mk2-dir") o.mk2_dir = next();
         else if (a == "--kbd-us") o.kbd_us = true;
         else if (a == "--ext-rom") o.ext_rom = next();
         else if (a == "--printer") o.printer = next();
@@ -498,6 +506,8 @@ int Sim::run()
 
     top->ram16k = opt.ram16k;
     top->pcg_on = opt.pcg;
+    top->model = opt.model;
+    top->n_mode = opt.n_mode;
     top->kbd_us = opt.kbd_us;
     // the MiSTer's RTC as Main sends it: 2026-11-03 (Tuesday) 12:00:00, BCD; bit 64 toggled
     top->rtc[0] = 0x03120000;      // day 03, hours 12, minutes 00, seconds 00
@@ -509,6 +519,17 @@ int Sim::run()
     top->ps2_key = 0;
     for (int i = 0; i < 16; i++) clock();
     if (!load_rom()) return 2;
+    if (opt.model == 1) {
+        // boot1.rom as Main loads it after boot.rom (ioctl index 40h): n80_2.rom (32 KB) + kanji1.rom (128 KB)
+        std::vector<uint8_t> b, k;
+        if (!read_file(opt.mk2_dir + "/n80_2.rom", b) || !read_file(opt.mk2_dir + "/kanji1.rom", k)) {
+            fprintf(stderr, "cannot read %s/n80_2.rom, kanji1.rom\n", opt.mk2_dir.c_str()); return 2;
+        }
+        b.resize(0x8000, 0xFF);
+        b.insert(b.end(), k.begin(), k.end());
+        ioctl_load(0, b, 0x40);
+        if (!opt.quiet) fprintf(stderr, "[sim] boot1.rom: '%s' n80_2.rom + kanji1.rom\n", opt.mk2_dir.c_str());
+    }
     if (!opt.ext_rom.empty()) {
         std::vector<uint8_t> e;
         if (!read_file(opt.ext_rom, e)) { fprintf(stderr, "cannot read %s\n", opt.ext_rom.c_str()); return 2; }

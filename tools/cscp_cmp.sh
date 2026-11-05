@@ -11,9 +11,16 @@
 # DISK2=FILE mounts a .d88 in drive 2 of both.
 # SWAP=FRAME:FILE puts FILE in drive 1 before FRAME (CSCP --swap-disk); SWAP2 the same for drive 2.
 # TAPE=FILE mounts a .cmt/.t88 in both (the sim at 5x turbo; CSCP feeds its 8251 FIFO at 5 ms a byte).
+# MODEL=mk2 runs the PC-8001mkII (CSCP's pc8001mk2 build; sim --mk2); NMODE=1 its N-BASIC mode.
 # Output: runs/cmp/NAME/{sim,cscp}/frame_NNNNNN.png. Exit 0 when every frame is identical.
 cd "$(dirname "$0")/.."
-CSCP=${CSCP:-/Users/alans/dev2/common_source_code/build/pc8001.app/Contents/MacOS/pc8001}
+B=/Users/alans/dev2/common_source_code/build
+m=""; smodel=""; cmodel=""
+if [ "$MODEL" = mk2 ]; then
+	m=mk2; smodel="--mk2"
+	[ -n "$NMODE" ] && { smodel="$smodel --n-mode"; cmodel="--boot-mode 2"; }
+fi
+CSCP=${CSCP:-$B/pc8001$m.app/Contents/MacOS/pc8001$m}
 AT=${AT:-300}
 VTOP=${VTOP:-verilator/obj_dir_headless/Vtop}
 SHIFT=${SHIFT:-0}
@@ -31,14 +38,14 @@ if [ -n "$TAPE" ]; then
 	t="$out/tape.${TAPE##*.}"; cp "$TAPE" "$t"   # a path without spaces for the unquoted options
 	ctape="--tape $t"; stape="--tape $t --tape-turbo"
 fi
-romdir=refs/emulators/cscp_roms/pc8001_nodisk; cdisk=""; sdisk=""
+romdir=refs/emulators/cscp_roms/pc8001${m}_nodisk; cdisk=""; sdisk=""
 if [ -n "$DISK" ]; then
 	d="$out/disk.d88"; cp "$DISK" "$d"
-	romdir=refs/emulators/cscp_roms/pc8001; cdisk="--disk-a $d"; sdisk="--disk $d"
+	romdir=refs/emulators/cscp_roms/pc8001$m; cdisk="--disk-a $d"; sdisk="--disk $d"
 fi
 if [ -n "$DISK2" ]; then
 	d="$out/disk2.d88"; cp "$DISK2" "$d"
-	romdir=refs/emulators/cscp_roms/pc8001; cdisk="$cdisk --disk-b $d"; sdisk="$sdisk --disk2 $d"
+	romdir=refs/emulators/cscp_roms/pc8001$m; cdisk="$cdisk --disk-b $d"; sdisk="$sdisk --disk2 $d"
 fi
 # SWAP=FRAME:FILE: insert FILE in drive 1 before FRAME (both)
 cswap=""; sswap=""
@@ -54,15 +61,15 @@ c2=""; s2=""
 if [ -n "$TEXT2" ]; then c2="--paste-text"; s2="--type"; fi
 ctext=$(printf '%s' "$text" | sed -E 's/\{WAIT[0-9]+\}//g')
 if [ -n "$text" ]; then
-	"$CSCP" --headless --rom-dir $romdir --out "$out/cscp" --stop-at-frame "$last" \
+	"$CSCP" --headless --rom-dir $romdir --out "$out/cscp" --stop-at-frame "$last" $cmodel \
 		--paste-text "$AT:$ctext" $cs $ctape $cdisk $cswap $c2 ${TEXT2:+"$TEXT2"} >/dev/null 2>&1
 	"$VTOP" --quiet --rom-dir refs/emulators/mame_roms/pc8001 \
-		--stop-at-frame $((last + SHIFT)) $ss --out "$out/sim" --type "$AT:$text" $stape $sdisk $sswap $s2 ${TEXT2:+"$TEXT2"} "$@"
+		--stop-at-frame $((last + SHIFT)) $smodel $ss --out "$out/sim" --type "$AT:$text" $stape $sdisk $sswap $s2 ${TEXT2:+"$TEXT2"} "$@"
 else
-	"$CSCP" --headless --rom-dir $romdir --out "$out/cscp" --stop-at-frame "$last" \
+	"$CSCP" --headless --rom-dir $romdir --out "$out/cscp" --stop-at-frame "$last" $cmodel \
 		$cs $ctape $cdisk $cswap >/dev/null 2>&1
 	"$VTOP" --quiet --rom-dir refs/emulators/mame_roms/pc8001 \
-		--stop-at-frame $((last + SHIFT)) $ss --out "$out/sim" $stape $sdisk $sswap "$@"
+		--stop-at-frame $((last + SHIFT)) $smodel $ss --out "$out/sim" $stape $sdisk $sswap "$@"
 fi
 rc=0
 for f in $(echo "$frames" | tr ',' ' '); do

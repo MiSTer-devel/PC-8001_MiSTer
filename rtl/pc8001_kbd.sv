@@ -11,6 +11,10 @@
 // kbd_us (OSD Keyboard = US): the symbols printed on a US keyboard. A symbol key whose JIS key or shift differs
 // presses the JIS key with SHIFT as that symbol needs, while it is held (one such key at a time). Not with
 // KANA or GRPH, where the JIS positions stay.
+// When that SHIFT differs from the SHIFT key held, the SHIFT state changes first and the JIS key follows
+// ~50 ms later: BASIC reads SHIFT (port 08h, 1007h) apart from the key scan (1041h) and decodes a key with the
+// SHIFT it saw last, so a key whose SHIFT changes with it reads as the other symbol (US ^ as SHIFT+^, : as *).
+// That key is then held at least ~33 ms (BASIC takes a key seen in two scans).
 
 module pc8001_kbd
 (
@@ -166,6 +170,11 @@ wire       us_on = kbd_us && !ext && us[8] && !kana && !m[8][4];
 reg        ov = 0, ov_sh = 0;      // a US symbol key held: its JIS key is pressed with SHIFT = ov_sh
 reg  [7:0] ov_code;
 reg  [6:0] ov_pos;
+reg        ov_key = 0;             // its JIS key is down (else waiting for SHIFT to settle)
+reg        ov_rel = 0;             // released before the minimum hold ended
+reg [20:0] ov_cnt = 0;
+localparam OV_WAIT = 21'd1431818;  // 50 ms (3 frames) at 28.636 MHz: SHIFT settles
+localparam OV_HOLD = 21'd954545;   // 33 ms (2 frames): the shortest press
 
 always @(posedge clk) begin
 	old_stb <= ps2_key[10];
@@ -174,23 +183,52 @@ always @(posedge clk) begin
 		kana <= 0;
 		fshift <= 0;
 		ov <= 0;
+		ov_key <= 0;
+		ov_cnt <= 0;
 	end
-	else if (old_stb != ps2_key[10]) begin
+	else begin
+	if (ov && ov_cnt != 0) begin
+		ov_cnt <= ov_cnt - 1'd1;
+		if (ov_cnt == 21'd1) begin
+			if (!ov_key) begin              // SHIFT settled: the key, held at least OV_HOLD
+				m[ov_pos[6:3]][ov_pos[2:0]] <= 1'b1;
+				ov_key <= 1'b1;
+				ov_cnt <= OV_HOLD;
+			end
+			else if (ov_rel) begin          // released during the wait or the hold
+				m[ov_pos[6:3]][ov_pos[2:0]] <= 1'b0;
+				ov <= 0;
+			end
+		end
+	end
+	if (old_stb != ps2_key[10]) begin
 		if ({ext, code} == 9'h058 || {ext, code} == 9'h013) begin
 			if (press) kana <= ~kana;   // Caps Lock / JP kana: KANA lock
 		end
 		else if (ov && !ext && code == ov_code) begin
-			if (!press) begin m[ov_pos[6:3]][ov_pos[2:0]] <= 1'b0; ov <= 0; end
+			if (!press) begin
+				if (ov_key && ov_cnt == 0) begin m[ov_pos[6:3]][ov_pos[2:0]] <= 1'b0; ov <= 0; end
+				else ov_rel <= 1'b1;
+			end
 		end
 		else if (press && us_on) begin
 			if (ov) m[ov_pos[6:3]][ov_pos[2:0]] <= 1'b0;
-			m[us[7:4]][us[3:1]] <= 1'b1;
-			ov <= 1'b1; ov_sh <= us[0]; ov_code <= code; ov_pos <= us[7:1];
+			ov <= 1'b1; ov_sh <= us[0]; ov_code <= code; ov_pos <= us[7:1]; ov_rel <= 0;
+			if (us[0] == (pshift | fshift)) begin
+				m[us[7:4]][us[3:1]] <= 1'b1;
+				ov_key <= 1'b1;
+				ov_cnt <= 0;
+			end
+			else begin
+				ov_key <= 1'b0;
+				ov_cnt <= OV_WAIT;
+			end
 		end
 		else if (hit) begin
 			m[r][b] <= press;
 			if (sh) fshift <= press;
 		end
+	end
 	end
 end
 
