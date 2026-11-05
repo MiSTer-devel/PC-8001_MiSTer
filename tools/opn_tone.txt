@@ -1,0 +1,1 @@
+10 for i=0 to 16:read r,v:out &h44,r:out &h45,v:next\n20 data 7,&h3e,8,15,0,&h8e,1,0,&hb0,7,&h3c,1,&h40,127,&h44,127,&h48,127,&h4c,0,&h5c,31,&h6c,0,&h7c,0,&h8c,15,&ha4,&h22,&ha0,&h69,&h28,&hf0\nrun\n

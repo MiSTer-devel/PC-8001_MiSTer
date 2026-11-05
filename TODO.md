@@ -128,7 +128,10 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
 ## 7. Release
 - [x] Hardware test on Mister 126 (2026-11-05): PC-8001 boot and BASIC, River Patrol from tape, the SR in N80SR
       mode (boot, 640x200 colour graphics), Nuts and Milk from disk on the SR. Timing met (setup slack 0.032 ns).
-- [ ] Audio on hardware (the KVMS stream has none): beep, PCG-8100, YM2203.
+- [x] Audio on hardware (misterkvms-cli record x.wav): beep 2400 Hz; YM2203 FM 261 Hz / SSG 879 Hz as CSCP. The sim's
+      --wav matches the hardware recording (levels within ~5%). The SR mix was rebalanced to CSCP's (beep and PCG
+      halved on the SR, SSG x 11/16): FM/beep 0.78, SSG/beep 0.68 (CSCP 0.80, 0.68). tools/audio_tones.py.
+- [ ] PCG-8100 sound on hardware and vs CSCP (pitch fixed with pit_ce).
 - [ ] Host-injected typing (KVMS) in JP mode sometimes loses SHIFT on the second of two shifted keys: SHIFT and
       the key arrive together and BASIC reads SHIFT apart from the scan (as kbd_us's settle, not applied in JP).
 - [ ] Tester zip under 20 MB (core, boot.rom recipes, curated software).
