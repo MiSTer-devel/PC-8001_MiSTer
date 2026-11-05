@@ -48,3 +48,6 @@ runs/
 .DS_Store
 __pycache__/
 *.pyc
+
+# tester zips (contain ROMs and games)
+releases/
