@@ -126,7 +126,12 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
 - [ ] YM2203 busy flag: jt12's lasts 32 FM clocks after a data write; CSCP has none (sropn masks it).
 
 ## 7. Release
-- [ ] Hardware test on Mister 126; tester zip under 20 MB (core, boot.rom recipe, curated software).
+- [x] Hardware test on Mister 126 (2026-11-05): PC-8001 boot and BASIC, River Patrol from tape, the SR in N80SR
+      mode (boot, 640x200 colour graphics), Nuts and Milk from disk on the SR. Timing met (setup slack 0.032 ns).
+- [ ] Audio on hardware (the KVMS stream has none): beep, PCG-8100, YM2203.
+- [ ] Host-injected typing (KVMS) in JP mode sometimes loses SHIFT on the second of two shifted keys: SHIFT and
+      the key arrive together and BASIC reads SHIFT apart from the scan (as kbd_us's settle, not applied in JP).
+- [ ] Tester zip under 20 MB (core, boot.rom recipes, curated software).
 - [ ] Public repo.
 
 ## Open questions (from PLAN.md)
