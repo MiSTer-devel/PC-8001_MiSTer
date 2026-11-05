@@ -50,6 +50,8 @@ struct Options {
     int         model = 0;                // --mk2: 1 (OSD Model PC-8001mkII)
     bool        n_mode = false;           // --n-mode: the mkII's N-BASIC switch
     std::string mk2_dir = "../refs/emulators/mame_roms/pc8001mk2";   // --mk2-dir: n80_2.rom, kanji1.rom
+    std::string sr_dir = "../refs/emulators/mame_roms/pc8001mk2sr";  // --sr-dir: n80_2sr.rom, n80_3.rom, font80sr.rom, kanji1.rom
+    bool        v2 = false;               // --v2: the SR's N80SR mode
     bool        kbd_us = false;
     std::set<uint32_t> resets;            // --reset-at FRAME
     std::string wav_file;                 // --wav
@@ -78,6 +80,8 @@ static void usage()
 "  --pcg                  PCG-8100 connected\n"
 "  --mk2                  PC-8001mkII (boot1.rom = DIR/n80_2.rom + DIR/kanji1.rom, --mk2-dir DIR); --n-mode:\n"
 "                         its N-BASIC switch\n"
+"  --sr                   PC-8001mkIISR (boot2.rom from --sr-dir DIR: n80_2sr.rom, n80_3.rom, font80sr.rom,\n"
+"                         kanji1.rom); --n-mode N mode, --v2 N80SR mode (else N80 mode)\n"
 "  --kbd-us               keyboard: US symbols (OSD Keyboard = US)\n"
 "  --ext-rom FILE         expansion ROM at 6000h (OSD Expansion ROM)\n"
 "  --printer FILE         write the bytes sent to the printer to FILE\n"
@@ -145,12 +149,15 @@ static bool parse_args(int argc, char **argv, Options &o)
         else if (a == "--trace-io") o.io_file = next();
         else if (a == "--trace-from") o.trace_from = parse_num(next());
         else if (a == "--trace-to") o.trace_to = parse_num(next());
-        else if (a == "--rom-dir") { std::string d = next(); o.basic_rom = d + "/n80v110.rom"; o.font_rom = d + "/font.rom"; o.disk_rom = d + "/disk.rom"; o.mk2_dir = d + "mk2"; }
+        else if (a == "--rom-dir") { std::string d = next(); o.basic_rom = d + "/n80v110.rom"; o.font_rom = d + "/font.rom"; o.disk_rom = d + "/disk.rom"; o.mk2_dir = d + "mk2"; o.sr_dir = d + "mk2sr"; }
         else if (a == "--basic") o.basic_rom = next();
         else if (a == "--font") o.font_rom = next();
         else if (a == "--ram16k") o.ram16k = true;
         else if (a == "--pcg") o.pcg = true;
         else if (a == "--mk2") o.model = 1;
+        else if (a == "--sr") o.model = 2;
+        else if (a == "--v2") o.v2 = true;
+        else if (a == "--sr-dir") o.sr_dir = next();
         else if (a == "--n-mode") o.n_mode = true;
         else if (a == "--mk2-dir") o.mk2_dir = next();
         else if (a == "--kbd-us") o.kbd_us = true;
@@ -508,6 +515,7 @@ int Sim::run()
     top->pcg_on = opt.pcg;
     top->model = opt.model;
     top->n_mode = opt.n_mode;
+    top->v2 = opt.v2;
     top->kbd_us = opt.kbd_us;
     // the MiSTer's RTC as Main sends it: 2026-11-03 (Tuesday) 12:00:00, BCD; bit 64 toggled
     top->rtc[0] = 0x03120000;      // day 03, hours 12, minutes 00, seconds 00
@@ -529,6 +537,23 @@ int Sim::run()
         b.insert(b.end(), k.begin(), k.end());
         ioctl_load(0, b, 0x40);
         if (!opt.quiet) fprintf(stderr, "[sim] boot1.rom: '%s' n80_2.rom + kanji1.rom\n", opt.mk2_dir.c_str());
+    }
+    if (opt.model == 2) {
+        // boot2.rom (ioctl index 80h): n80_2sr.rom at 0, n80_3.rom at 8000h, font80sr.rom at 12000h, kanji1.rom
+        // at 20000h (tools/make_boot2_rom.sh)
+        std::vector<uint8_t> a, n3, f, k;
+        const std::string &d = opt.sr_dir;
+        if (!read_file(d + "/n80_2sr.rom", a) || !read_file(d + "/n80_3.rom", n3) || !read_file(d + "/font80sr.rom", f) ||
+            !read_file(d + "/kanji1.rom", k)) {
+            fprintf(stderr, "cannot read %s/n80_2sr.rom, n80_3.rom, font80sr.rom, kanji1.rom\n", d.c_str()); return 2;
+        }
+        std::vector<uint8_t> b(0x20000, 0xFF);
+        std::copy(a.begin(), a.begin() + std::min<size_t>(a.size(), 0x8000), b.begin());
+        std::copy(n3.begin(), n3.begin() + std::min<size_t>(n3.size(), 0xA000), b.begin() + 0x8000);
+        std::copy(f.begin(), f.begin() + std::min<size_t>(f.size(), 0x1000), b.begin() + 0x12000);
+        b.insert(b.end(), k.begin(), k.end());
+        ioctl_load(0, b, 0x80);
+        if (!opt.quiet) fprintf(stderr, "[sim] boot2.rom: '%s'\n", d.c_str());
     }
     if (!opt.ext_rom.empty()) {
         std::vector<uint8_t> e;

@@ -30,6 +30,9 @@ run tape_mon 1300 --tape-turbo --tape "$Y/1982/PC-8001/Kumo Vader (1982)(Micom B
 run disk_boot 900 --disk "$Y/BASIC/PC-8001/N-BASIC System Disk PC-8034-2W.d88"
 run mk2boot  600 --mk2
 run mk2n     600 --mk2 --n-mode
+run srboot   600 --sr
+run srn      600 --sr --n-mode
+run srv2     600 --sr --v2
 python3 -I tests/make_ext_rom.py out/tests/ext.rom
 run ext_rom  400 --ext-rom out/tests/ext.rom
 # printer: the bytes LPRINT and LLIST send

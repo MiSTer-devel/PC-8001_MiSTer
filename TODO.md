@@ -112,10 +112,18 @@ Spec: refs/docs/MK2_NOTES.md (CSCP's model). CSCP comparisons: MODEL=mk2 tools/c
 - [ ] Ver 1.3 boot screen (MAME) vs CSCP's Ver 1.0: which ROM.
 
 ## 6. PC-8001mkIISR (Model option)
+Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
+- [x] Model option, boot2.rom (tools/make_boot2_rom.sh; rtl/rom_store.sv set 2), N80 / N / N80SR modes (30h/31h
+      reads), N80SR-BASIC's 40 KB ROM (33h bit 7, 71h bank), full port decode, SR waits (none in N80SR mode).
+- [x] 3-plane GVRAM (5Ch-5Eh), the ALU (34h/35h), palette 54h-5Bh, N80SR video modes (640/320 colour, 640/320
+      attribute, 320 pages, plane mask 53h, PR1/PR2), the hiragana font (33h bit 4). All match CSCP (srg_*, sralu).
+- [x] YM2203 (jt03 at 44h/45h), its interrupt (level 4, 33h bit 1 mask), mixed into the audio. Timer A matches
+      CSCP (sropn). Fixed with it: the 3.9936 MHz clock enable (pit_ce) ran at ~clk_sys (an 18-bit constant
+      overflowed), so the PCG-8100's 8253 sound was ~7x too high until now.
+- [x] SR boot screens (srboot, srn, srv2) match CSCP.
 - [ ] MAME SR reference frames (fonthira.rom found 2026-11-03; MAME boots to Ver 1.6).
-- [ ] 3-plane GVRAM (5Ch-5Eh), 640x200 8 colours, palette 54h-5Bh, N80SR-BASIC bank (33h, 71h).
-- [ ] YM2203 (jt03 at 44h/45h) and its interrupt; SR fonts.
-- [ ] SR boot screen; F2 Grand Prix, Type Game, Nuts and Milk.
+- [ ] Software: F2 Grand Prix, Type Game, Nuts and Milk; a hiragana test; keyboard row 0Ah.
+- [ ] YM2203 busy flag: jt12's lasts 32 FM clocks after a data write; CSCP has none (sropn masks it).
 
 ## 7. Release
 - [ ] Hardware test on Mister 126; tester zip under 20 MB (core, boot.rom recipe, curated software).

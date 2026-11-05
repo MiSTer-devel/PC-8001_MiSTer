@@ -15,8 +15,9 @@ module pc8001 #(
 (
 	input         clk_sys,        // 28.636 MHz
 	input         reset,
-	input   [1:0] model,          // 0 PC-8001, 1 PC-8001mkII (boot1.rom)
-	input         n_mode,         // mkII: the N-BASIC (N) mode DIP switch, else N80 (30h bit 0)
+	input   [1:0] model,          // 0 PC-8001, 1 PC-8001mkII (boot1.rom), 2 PC-8001mkIISR (boot2.rom)
+	input         n_mode,         // mkII/SR: the N-BASIC (N) mode DIP switch, else N80 (30h bit 0)
+	input         v2,             // SR: N80SR mode (30h bit 1 = 0; CSCP boot mode 1), else n_mode decides
 	input         ram16k,         // 16 KB at C000-FFFF instead of 32 KB at 8000-FFFF (PC-8001)
 	input         pcg_on,         // PCG-8100 connected
 	input  [64:0] rtc,            // hps_io RTC, for the uPD1990A
@@ -122,28 +123,32 @@ wire kanji_busy, rs_busy;
 wire irq;                      // mkII interrupts (below)
 wire vrtc;
 wire rom_dl = ioctl_download & (ioctl_index == 8'd0);         // boot.rom
-wire mk2 = model == 2'd1;
+wire sr = model == 2'd2;
+wire mk2 = model != 2'd0;      // the mkII's features (the SR has them all)
+wire srv2 = sr & v2;           // the SR in N80SR mode: its video, palette and waits (CSCP boot mode V2)
 wire ext_dl = ioctl_download & (ioctl_index[5:0] == 6'd2);   // OSD Expansion ROM
 
 // Memory wait: one wait state in each memory read, opcode fetches included, none in writes (CSCP on the
-// PC-8001: mem_wait_on, PC88::get_main_wait). The T80 drives RD_n and MREQ_n low for T2 (and its waits) only,
-// and samples WAIT_n in T2.
+// PC-8001 and mkII: mem_wait_on, PC88::get_main_wait). The SR (its MEMWAIT switch off, CSCP's default): one in
+// each opcode fetch in N80/N mode, none in N80SR mode. The T80 drives RD_n and MREQ_n low for T2 (and its
+// waits) only, and samples WAIT_n in T2.
 reg  rd_waited = 0;
 wire gv_wait;
-wire wait_n = ~(~mreq_n & ~rd_n & ~rd_waited) & ~(~iorq_n & ~rd_n & (A[7:1] == 7'h74) & kanji_busy) & ~gv_wait;
+wire mem_wait = sr ? (~m1_n & ~srv2) : 1'b1;
+wire wait_n = ~(~mreq_n & ~rd_n & ~rd_waited & mem_wait) & ~(~iorq_n & ~rd_n & (A[7:1] == 7'h74) & kanji_busy) & ~gv_wait;
 always @(posedge clk_sys) begin
 	if (mreq_n | rd_n) rd_waited <= 0;
 	else if (ce_cpu) rd_waited <= 1;
 end
 
 // DMA bus steal: 5.95 CPU clocks for each byte the CRTC reads (1523/256). A row (up to 120 bytes) comes in a
-// burst, so the count needs 20 bits.
+// burst, so the count needs 20 bits. None in the SR's N80SR mode (CSCP).
 reg  [19:0] steal = 0;
 wire        busrq = steal >= 20'd256;
 wire        dma_adv;
 always @(posedge clk_sys) begin
 	if (cpu_reset) steal <= 0;
-	else if (tape_turbo_on) steal <= 0;
+	else if (tape_turbo_on | srv2) steal <= 0;
 	else steal <= steal + (dma_adv ? 20'd1523 : 20'd0) - ((ce_cpu & busrq) ? 20'd256 : 20'd0);
 end
 wire cpu_reset = reset | rom_dl | ext_dl | rs_busy;   // and while the ROM store copies the model's ROM
@@ -188,28 +193,50 @@ reg  [7:0] rom[0:32767];
 reg  [7:0] rom_q;
 wire       rom_we = rom_dl & ioctl_wr & (ioctl_addr < 25'h6000);
 wire       rs_we;
-wire [14:0] rs_a;
+wire [16:0] rs_a;
 wire  [7:0] rs_d;
 always @(posedge clk_sys) begin
-	if (rs_we) rom[rs_a] <= rs_d;
+	if (rs_we & (rs_a[16:15] == 2'd0)) rom[rs_a[14:0]] <= rs_d;
 	else if (rom_we) rom[ioctl_addr[14:0]] <= ioctl_dout;
 	rom_q <= rom[A[14:0]];
 end
 
+// SR: N80SR-BASIC (n80_3.rom, 40 KB; boot2.rom 8000h-11FFFh) at 0000-7FFF while 33h bit 7 is set: 0000-5FFF
+// its first 24 KB, 6000-7FFF its 6000h (71h bit 0 = 1) or 8000h (0) (CSCP update_n80_read)
+reg  [7:0] srrom[0:40959];
+reg  [7:0] srrom_q;
+reg  [7:0] port71 = 8'hFF;
+wire [16:0] srrom_wa = rs_a - 17'h08000;
+wire [15:0] srrom_ra = (A[14:13] == 2'b11 && !port71[0]) ? {1'b0, A[14:0]} + 16'h2000 : {1'b0, A[14:0]};
+always @(posedge clk_sys) begin
+	if (rs_we & (rs_a >= 17'h08000) & (rs_a < 17'h12000)) srrom[srrom_wa[15:0]] <= rs_d;
+	srrom_q <= srrom[srrom_ra];
+end
+
 // mkII: 64 KB RAM (the low 32 KB here, 0000-7FFF over the ROM: 31h bit 1, or E2h bits 0 read / 4 write) and
 // 16 KB graphics VRAM at 8000-BFFF while 5Ch selects it (5Fh: RAM). The CRTC's DMA reads the main RAM only.
+// SR: three 16 KB planes, 5Ch blue, 5Dh red, 5Eh green; with 33h bit 6 the window is the ALU's (35h bit 7) or
+// RAM, and 5Ch-5Fh select nothing (CSCP update_gvram_sel).
 reg  [7:0] port31 = 8'h01;   // 0 ROM 0000-7FFF (else 0000-5FFF), 1 64 KB RAM, 2 mono 640, 3 graphics, 4 320x200, 7-5 G R B
 reg  [7:0] portE2 = 0;       // 0 read, 4 write the low RAM
-reg        gv_sel = 0;       // 5Ch
-reg  [7:0] port53 = 0;       // 0 text off, 1 graphics off
+reg  [2:0] gv_plane = 0;     // 5Ch-5Eh: {G, R, B} one-hot (the mkII: 5Ch B only); 5Fh none
+reg  [7:0] port53 = 0;       // 0 text off, 1 graphics off (SR: 1-6 planes, per mode)
+reg  [7:0] port32 = 8'h98;   // SR: stored
+reg  [7:0] port33 = 0;       // SR: 1 OPN interrupt mask, 2 320 page 1 in front, 3 graphics over text, 4 hiragana,
+                             // 6 ALU window, 7 N80SR ROM
+reg  [7:0] port34 = 0;       // SR ALU: bits i, i+4 the write operation of plane i (B, R, G)
+reg  [7:0] port35 = 0;       // SR ALU: 2-0 compare colour, 5-4 write mode, 7 ALU on (with 33h bit 6)
+reg  [2:0] pal[0:7];         // SR 54h-5Bh: {G, R, B}
+reg        ghsm = 0;         // 40h bit 4 (SR: GVRAM wait 2 in N80/N mode)
 reg [15:0] kanji_a = 0;      // E8h, E9h: the kanji ROM's 16-bit word (rtl/rom_store.sv fetches it)
 reg        kanji_rd = 0;
 wire [15:0] kanji_q;
 wire       lo_rd = mk2 & (portE2[0] | port31[1]);
 wire       lo_wr = mk2 & (portE2[4] | port31[1]);
-wire       gv_on = mk2 & gv_sel & (A[15:14] == 2'b10);
+wire       alu_on = sr & port33[6] & port35[7];
+wire       gv_on = mk2 & ((gv_plane != 3'd0) | alu_on) & (A[15:14] == 2'b10);
 // GVRAM wait (CSCP PC88::update_gvram_wait): with graphics on, 68 clocks an access while the screen is drawn
-// (set as the display starts, cleared at vblank); otherwise as RAM
+// (set as the display starts, cleared at vblank); otherwise as RAM. SR: 2 in N80SR mode or with 40h bit 4.
 reg        gw_on = 0, vrtc_q = 0;
 reg  [6:0] gw_cnt = 0;
 reg        gw_done = 0;
@@ -220,7 +247,7 @@ always @(posedge clk_sys) begin
 	if (mreq_n | (rd_n & wr_n)) begin gw_cnt <= 0; gw_done <= 0; end
 	else if (gv_on & gw_on & ce_cpu & ~gw_done) begin
 		gw_cnt <= gw_cnt + 1'd1;
-		if (gw_cnt == 7'd67) gw_done <= 1'b1;
+		if (gw_cnt == ((sr & (v2 | ghsm)) ? 7'd1 : 7'd67)) gw_done <= 1'b1;
 	end
 end
 assign gv_wait = ~mreq_n & (~rd_n | ~wr_n) & gv_on & gw_on & ~gw_done;
@@ -231,13 +258,54 @@ always @(posedge clk_sys) begin
 	if (~mreq_n & ~wr_n & ~A[15] & lo_wr) exram[A[14:0]] <= cpu_dout;
 	exram_q <= exram[A[14:0]];
 end
-wire [7:0] gvram_q, gv_q;
+// the planes: port a the CPU's, b the CRTC's. A write goes in once, at its first clock (the ALU's read-modify-
+// write takes the plane's byte at that address, which q_a holds by then).
+wire [7:0] gvb_q, gvr_q, gvg_q;
+wire [23:0] gv_q;              // {G, R, B} for the CRTC
 wire [13:0] gv_addr;
-dpram_tdp #(.WORDS(16384), .AW(14)) gvram
+reg        gv_wr_d = 0;
+wire       gv_wr = ~mreq_n & ~wr_n & gv_on & ~gv_wr_d;
+always @(posedge clk_sys) gv_wr_d <= ~mreq_n & ~wr_n;
+reg  [7:0] alu_b = 0, alu_r = 0, alu_g = 0;   // the bytes latched by an ALU read
+function [7:0] alu_op(input [7:0] p, input [7:0] d, input set, input inv);
+	alu_op = {inv, set} == 2'b00 ? (p & ~d) : {inv, set} == 2'b01 ? (p | d) : {inv, set} == 2'b10 ? (p ^ d) : p;
+endfunction
+reg  [7:0] wb_d, wr_d, wg_d;
+reg  [2:0] gv_we;
+always @(*) begin
+	wb_d = cpu_dout; wr_d = cpu_dout; wg_d = cpu_dout;
+	gv_we = alu_on ? 3'b111 : gv_plane;
+	if (alu_on) case (port35[5:4])
+		2'd0: begin
+			wb_d = alu_op(gvb_q, cpu_dout, port34[0], port34[4]);
+			wr_d = alu_op(gvr_q, cpu_dout, port34[1], port34[5]);
+			wg_d = alu_op(gvg_q, cpu_dout, port34[2], port34[6]);
+		end
+		2'd1: begin wb_d = alu_b; wr_d = alu_r; wg_d = alu_g; end
+		2'd2: begin wb_d = alu_r; gv_we = 3'b001; end
+		2'd3: begin wr_d = alu_b; gv_we = 3'b010; end
+	endcase
+end
+always @(posedge clk_sys) if (~mreq_n & ~rd_n & gv_on & alu_on) begin alu_b <= gvb_q; alu_r <= gvr_q; alu_g <= gvg_q; end
+wire [7:0] alu_rd = (port35[0] ? gvb_q : ~gvb_q) & (port35[1] ? gvr_q : ~gvr_q) & (port35[2] ? gvg_q : ~gvg_q);
+wire [7:0] gvram_q = alu_on ? alu_rd : gv_plane[1] ? gvr_q : gv_plane[2] ? gvg_q : gvb_q;
+dpram_tdp #(.WORDS(16384), .AW(14)) gvram_b
 (
 	.clk(clk_sys),
-	.addr_a(A[13:0]), .we_a(~mreq_n & ~wr_n & gv_on), .d_a(cpu_dout), .q_a(gvram_q),
-	.addr_b(gv_addr), .we_b(1'b0), .d_b(8'h00), .q_b(gv_q)
+	.addr_a(A[13:0]), .we_a(gv_wr & gv_we[0]), .d_a(wb_d), .q_a(gvb_q),
+	.addr_b(gv_addr), .we_b(1'b0), .d_b(8'h00), .q_b(gv_q[7:0])
+);
+dpram_tdp #(.WORDS(16384), .AW(14)) gvram_r
+(
+	.clk(clk_sys),
+	.addr_a(A[13:0]), .we_a(gv_wr & gv_we[1] & sr), .d_a(wr_d), .q_a(gvr_q),
+	.addr_b(gv_addr), .we_b(1'b0), .d_b(8'h00), .q_b(gv_q[15:8])
+);
+dpram_tdp #(.WORDS(16384), .AW(14)) gvram_g
+(
+	.clk(clk_sys),
+	.addr_a(A[13:0]), .we_a(gv_wr & gv_we[2] & sr), .d_a(wg_d), .q_a(gvg_q),
+	.addr_b(gv_addr), .we_b(1'b0), .d_b(8'h00), .q_b(gv_q[23:16])
 );
 
 // font.rom, 8x8 characters, bit 7 on the left
@@ -266,7 +334,19 @@ always @(posedge clk_sys) begin
 	pcg_q <= pcg[font_a[9:0]];
 	pcg_sel <= pcg_on & font_a[10];
 end
-wire [7:0] font_q = pcg_sel ? pcg_q : font_rq;
+// SR: font80sr.rom's second half (boot2.rom 12800h-12FFFh), the hiragana for codes A0h-DFh with 33h bit 4.
+// Those codes always show the ROM's glyphs on the SR (CSCP copies them over the PCG's each frame).
+reg  [7:0] hira[0:2047];
+reg  [7:0] hira_q;
+reg        hira_sel = 0, srkana = 0;
+wire       kana_code = (font_a[10:8] == 3'b101) | (font_a[10:8] == 3'b110);   // A0h-DFh
+always @(posedge clk_sys) begin
+	if (rs_we & (rs_a[16:11] == 6'b100101)) hira[rs_a[10:0]] <= rs_d;
+	hira_q <= hira[font_a];
+	hira_sel <= sr & port33[4] & kana_code;
+	srkana <= sr & kana_code;
+end
+wire [7:0] font_q = hira_sel ? hira_q : (pcg_sel & ~srkana) ? pcg_q : font_rq;
 
 // Expansion ROM, 6000-7FFF (8 KB, from the OSD; N-BASIC starts it at reset when it begins "AB"). Reads FFh
 // until one is loaded.
@@ -299,6 +379,7 @@ dpram_tdp #(.WORDS(32768), .AW(15)) ram
 
 wire [7:0] mem_dout = A[15] ? (gv_on ? gvram_q : is_ram ? ram_q : 8'hFF) :
                       lo_rd ? exram_q :
+                      (sr & port33[7]) ? srrom_q :
                       (A[14:13] == 2'b11) ? ((mk2 & port31[0]) ? rom_q : ext_ok ? ext_q : 8'hFF) :   // 6000-7FFF: expansion ROM
                       rom_q;
 
@@ -328,26 +409,49 @@ always @(posedge clk_sys) begin
 		pcg_ctrl <= 0;
 		port31 <= 8'h01;
 		portE2 <= 0;
-		gv_sel <= 0;
+		gv_plane <= 0;
 		port53 <= 0;
+		port32 <= 8'h98;
+		port33 <= srv2 ? 8'h80 : 8'h00;   // CSCP: N80SR mode boots N80SR-BASIC
+		port34 <= 0;
+		port35 <= 0;
+		port71 <= 8'hFF;
+		ghsm <= 0;
+		for (int i = 0; i < 8; i = i + 1) pal[i] <= 3'(i);
 	end
 	else if (io_wr & ~old_io_wr) begin
 		case (A[7:4])
 		4'h1: port10 <= cpu_dout;
-		4'h3: if (mk2 & A[0]) port31 <= cpu_dout; else port30 <= cpu_dout;   // the mkII: odd ports 31h
-		4'h5: if (mk2) case (A[3:0])
-			4'h3: port53 <= cpu_dout;
-			4'hC: gv_sel <= 1'b1;
-			4'hF: gv_sel <= 1'b0;
+		4'h3: if (sr) case (A[3:0])                   // the SR decodes every port
+			4'h0: port30 <= cpu_dout;
+			4'h1: port31 <= cpu_dout;
+			4'h2: port32 <= cpu_dout;
+			4'h3: begin
+				port33 <= cpu_dout;
+				if (cpu_dout[6]) gv_plane <= 0;
+			end
+			4'h4: port34 <= cpu_dout;
+			4'h5: port35 <= cpu_dout;
 			default: ;
 			endcase
+			else if (mk2 & A[0]) port31 <= cpu_dout; else port30 <= cpu_dout;   // the mkII: odd ports 31h
+		4'h5: if (mk2) case (A[3:0])
+			4'h3: port53 <= cpu_dout;
+			4'h4, 4'h5, 4'h6, 4'h7, 4'h8, 4'h9, 4'hA, 4'hB: if (sr) pal[A[2:0] - 3'd4] <= {cpu_dout[2], cpu_dout[1], cpu_dout[0]};
+			4'hC: gv_plane <= (sr & port33[6]) ? 3'd0 : 3'b001;
+			4'hD: if (sr) gv_plane <= port33[6] ? 3'd0 : 3'b010;
+			4'hE: if (sr) gv_plane <= port33[6] ? 3'd0 : 3'b100;
+			4'hF: gv_plane <= 0;
+			default: ;
+			endcase
+		4'h7: if (sr & (A[3:0] == 4'h1)) port71 <= cpu_dout;
 		4'hE: if (mk2) case (A[3:0])
 			4'h2: portE2 <= cpu_dout;
 			4'h8: kanji_a[7:0] <= cpu_dout;
 			4'h9: kanji_a[15:8] <= cpu_dout;
 			default: ;
 			endcase
-		4'h4: begin beep_on <= cpu_dout[5]; port40 <= cpu_dout[2:0]; end
+		4'h4: if (~sr | (A[3:0] == 4'h0)) begin beep_on <= cpu_dout[5]; port40 <= cpu_dout[2:0]; ghsm <= cpu_dout[4]; end
 		default: ;
 		endcase
 	end
@@ -376,8 +480,18 @@ always @(*) begin
 	8'h2?:   io_dout = usart_dout;                   // 8251
 	// 5 VRTC, 4 RTC DOUT, 2 CMT carrier, 0 printer BUSY (never: the printer takes every byte); 7, 6, 1 high,
 	// 3 low, as CSCP
-	8'h4?:   io_dout = {2'b11, vrtc, rtc_dout, 1'b0, cmt_dcd, 2'b10};
-	8'h3?:   io_dout = ~mk2 ? 8'hFF : A[0] ? 8'hB9 : {7'h7F, ~n_mode};   // mkII: 30h the N80/N switch, 31h B9h (CSCP)
+	8'h4?:   io_dout = ~sr ? {2'b11, vrtc, rtc_dout, 1'b0, cmt_dcd, 2'b10} :
+	                   (A[3:0] == 4'h0) ? {2'b11, vrtc, rtc_dout, 1'b0, cmt_dcd, 2'b10} :
+	                   (A[3:1] == 3'b010) ? opn_dout : 8'hFF;   // SR: 44h OPN status, 45h its register
+	// mkII: 30h the N80/N switch, 31h B9h (CSCP); SR: 30h also N80SR (bit 1 = 0), 31h 39h in N80SR mode
+	8'h3?:   io_dout = ~mk2 ? 8'hFF :
+	                   ~sr ? (A[0] ? 8'hB9 : {7'h7F, ~n_mode}) :
+	                   (A[3:0] == 4'h0) ? {6'h3F, ~v2, ~n_mode} :
+	                   (A[3:0] == 4'h1) ? {~v2, 7'h39} :
+	                   (A[3:0] == 4'h2) ? port32 :
+	                   (A[3:0] == 4'h3) ? port33 : 8'hFF;
+	8'h5C:   io_dout = sr ? {5'h1F, gv_plane} : 8'hFF;
+	8'h71:   io_dout = sr ? port71 : 8'hFF;
 	8'h50, 8'h51: io_dout = crtc_dout;
 	8'hE2:   io_dout = mk2 ? (~portE2 | 8'hEE) : 8'hFF;
 	8'hE8:   io_dout = mk2 ? kanji_q[7:0] : 8'hFF;
@@ -390,24 +504,27 @@ end
 
 //----------------------------------------------------------------------------
 // mkII interrupts (CSCP PC88): Z80 mode 2, vector = level x 2. Level 0 the 8251's RxRDY (its level), 1 VRTC
-// (as it rises), 2 a timer at 600 Hz. E4h: levels below its value enabled (an acknowledge disables all until
+// (as it rises), 2 a timer at 600 Hz, 4 (SR) the OPN as its IRQ rises unless 33h bit 1 masks it (clearing the
+// mask with IRQ high requests too). E4h: levels below its value enabled (an acknowledge disables all until
 // the next E4h write); E6h: bit 0 timer, 1 VRTC, 2 RxRDY, a source disabled loses its request.
 //----------------------------------------------------------------------------
 
 wire       rxrdy;
-reg  [2:0] int_req = 0;
-reg  [2:0] int_mask1 = 0;    // E4h
+wire       opn_irq_n;
+reg  [4:0] int_req = 0;
+reg  [4:0] int_mask1 = 0;    // E4h
 reg  [2:0] int_mask2 = 0;    // E6h, as {timer, VRTC, RxRDY} -> {level 2, 1, 0}
-wire [2:0] int_act = int_req & int_mask1 & int_mask2;
+wire [4:0] int_act = int_req & int_mask1 & {2'b11, int_mask2};
 assign     irq = mk2 & |int_act;
 wire       inta = ~m1_n & ~iorq_n;
-reg        inta_d = 0, vrtc_d = 0;
-reg  [1:0] int_lvl = 0;
+reg        inta_d = 0, vrtc_d = 0, opn_irq_d = 0;
+reg  [2:0] int_lvl = 0;
 reg [15:0] tmr = 0;          // 28.636364 MHz / 47727 = 600.0 Hz
 always @(posedge clk_sys) begin
 	inta_d <= inta;
 	vrtc_d <= vrtc;
-	if (~inta) int_lvl <= int_act[0] ? 2'd0 : int_act[1] ? 2'd1 : 2'd2;
+	opn_irq_d <= ~opn_irq_n;
+	if (~inta) int_lvl <= int_act[0] ? 3'd0 : int_act[1] ? 3'd1 : int_act[2] ? 3'd2 : int_act[3] ? 3'd3 : 3'd4;
 	tmr <= (tmr == 16'd47726) ? 16'd0 : tmr + 1'd1;
 	if (cpu_reset | ~mk2) begin
 		int_req <= 0; int_mask1 <= 0; int_mask2 <= 0;
@@ -416,12 +533,15 @@ always @(posedge clk_sys) begin
 		int_req[0] <= rxrdy & int_mask2[0];
 		if (vrtc & ~vrtc_d & int_mask2[1]) int_req[1] <= 1'b1;
 		if ((tmr == 0) & int_mask2[2]) int_req[2] <= 1'b1;
+		if (sr & ~opn_irq_n & ~opn_irq_d & ~port33[1]) int_req[4] <= 1'b1;
+		if (sr & ~opn_irq_n & io_wr & ~old_io_wr & (A[7:0] == 8'h33) & port33[1] & ~cpu_dout[1]) int_req[4] <= 1'b1;
 		if (inta & ~inta_d) begin
-			if (int_lvl != 2'd0) int_req[int_lvl] <= 1'b0;
+			if (int_lvl != 3'd0) int_req[int_lvl] <= 1'b0;
 			int_mask1 <= 0;
 		end
 		if (io_wr & ~old_io_wr & (A[7:0] == 8'hE4))
-			int_mask1 <= (cpu_dout >= 8'd3) ? 3'b111 : (cpu_dout == 8'd2) ? 3'b011 : (cpu_dout == 8'd1) ? 3'b001 : 3'b000;
+			int_mask1 <= (cpu_dout >= 8'd5) ? 5'b11111 : (cpu_dout == 8'd4) ? 5'b01111 : (cpu_dout == 8'd3) ? 5'b00111 :
+			             (cpu_dout == 8'd2) ? 5'b00011 : (cpu_dout == 8'd1) ? 5'b00001 : 5'b00000;
 		if (io_wr & ~old_io_wr & (A[7:0] == 8'hE6)) begin
 			int_mask2 <= {cpu_dout[0], cpu_dout[1], cpu_dout[2]};
 			if (~cpu_dout[0]) int_req[2] <= 1'b0;
@@ -430,7 +550,7 @@ always @(posedge clk_sys) begin
 	end
 end
 
-always @(*) cpu_din = ~mreq_n ? mem_dout : inta ? {5'd0, int_lvl, 1'b0} : io_dout;
+always @(*) cpu_din = ~mreq_n ? mem_dout : inta ? {4'd0, int_lvl, 1'b0} : io_dout;
 
 assign dbg_io_wr = io_wr & ~old_io_wr;
 reg old_io_rd = 0;
@@ -455,11 +575,12 @@ always @(posedge clk_sys) if (ce_pix) begin
 end
 
 // PCG-8100 sound: the 8253's outputs, each switched by a bit of port 02h
-reg  [17:0] pit_acc = 0;
+// 3.9936 MHz from clk_sys (28.6364 MHz): 39936/286364 (19 bits: 286364 does not fit in 18)
+reg  [18:0] pit_acc = 0;
 reg         pit_ce = 0;
 always @(posedge clk_sys) begin
-	if (pit_acc + 18'd39936 >= 18'd286364) begin pit_acc <= pit_acc + 18'd39936 - 18'd286364; pit_ce <= 1'b1; end
-	else begin pit_acc <= pit_acc + 18'd39936; pit_ce <= 1'b0; end
+	if (pit_acc + 19'd39936 >= 19'd286364) begin pit_acc <= pit_acc + 19'd39936 - 19'd286364; pit_ce <= 1'b1; end
+	else begin pit_acc <= pit_acc + 19'd39936; pit_ce <= 1'b0; end
 end
 wire [2:0] pit_out;
 pit8253 pit
@@ -477,8 +598,40 @@ pit8253 pit
 	.out(pit_out)
 );
 wire [2:0] pcg_snd = pcg_on ? (pit_out & {pcg_ctrl[7], pcg_ctrl[6], pcg_ctrl[3]}) : 3'b000;
+// SR: the YM2203 (jt03) at 44h (address; read: status) / 45h (data; read: the register), clocked at 3.9936 MHz
+// (CSCP 3993624 Hz); its SSG's ports read FFh (no joystick)
+wire        [7:0] opn_dout;
+wire        [9:0] opn_psg;
+wire signed [15:0] opn_fm;
+jt03 opn
+(
+	.rst(cpu_reset | ~sr),
+	.clk(clk_sys),
+	.cen(pit_ce),
+	.din(cpu_dout),
+	.addr(A[0]),
+	.cs_n(1'b0),
+	.wr_n(~(io_wr & ~old_io_wr & sr & (A[7:1] == 7'h22))),
+	.dout(opn_dout),
+	.irq_n(opn_irq_n),
+	.IOA_in(8'hFF),
+	.IOB_in(8'hFF),
+	.IOA_out(),
+	.IOB_out(),
+	.IOA_oe(),
+	.IOB_oe(),
+	.psg_A(), .psg_B(), .psg_C(),
+	.fm_snd(opn_fm),
+	.psg_snd(opn_psg),
+	.snd(),
+	.snd_sample(),
+	.debug_view()
+);
+
+// unsigned: the beeper, the PCG's three channels, and (SR) the SSG (0..1023 x 16) and FM (/ 4, centred 2000h)
+wire [15:0] opn_mix = sr ? {2'd0, opn_psg, 4'd0} + {2'b00, ~opn_fm[15], opn_fm[14:2]} : 16'd0;
 assign audio = ((beep_on & beep_sq) ? 16'h2000 : 16'h0000) + (pcg_snd[0] ? 16'h1800 : 16'h0000) +
-               (pcg_snd[1] ? 16'h1800 : 16'h0000) + (pcg_snd[2] ? 16'h1800 : 16'h0000);
+               (pcg_snd[1] ? 16'h1800 : 16'h0000) + (pcg_snd[2] ? 16'h1800 : 16'h0000) + opn_mix;
 
 //----------------------------------------------------------------------------
 // uPD1990A calendar clock
@@ -541,9 +694,13 @@ pc8001_crtc crtc
 	.mono(port30[1]),
 	.mk2(mk2),
 	.gmode(port31),
-	.dmask(port53[1:0]),
+	.dmask(port53[6:0]),
 	.gv_addr(gv_addr),
 	.gv_q(gv_q),
+	.sr(sr),
+	.srv2(srv2),
+	.prio(port33[3:2]),
+	.pal({pal[7], pal[6], pal[5], pal[4], pal[3], pal[2], pal[1], pal[0]}),
 	.font_a(font_a),
 	.font_q(font_q),
 	.dma_ready(dma_ready),

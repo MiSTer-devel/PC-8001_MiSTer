@@ -53,9 +53,17 @@ module pc8001_crtc
 	// PC-8001mkII graphics (CSCP PC88::draw_screen): 640x200, 80 bytes a line, MSB on the left
 	input             mk2,
 	input       [7:0] gmode,        // port 31h: 2 mono 640 (320: blue), 3 graphics on, 4 320x200, 7-5 background G R B
-	input       [1:0] dmask,        // port 53h: 0 text off, 1 graphics off
+	input       [6:0] dmask,        // port 53h: 0 text off, 1 graphics off (SR N80SR mode: 1-6 planes)
 	output reg [13:0] gv_addr,
-	input       [7:0] gv_q,         // one clock after gv_addr
+	input      [23:0] gv_q,         // one clock after gv_addr: {G, R, B} planes (the mkII: B)
+
+	// PC-8001mkIISR in N80SR mode (CSCP boot mode V2; SR_NOTES.md): 31h bit 4 colour (else attribute), bit 2
+	// 320 wide (40 bytes a line, page 1 at +2000h); palette 54h-5Bh; 33h bit 2 page 1 in front, bit 3 graphics
+	// over text (all SR modes)
+	input             sr,
+	input             srv2,
+	input       [1:0] prio,         // 33h bits 3-2
+	input      [23:0] pal,          // 54h-5Bh: {G, R, B} of colour 7..0
 
 	output            vrtc,
 	output reg  [2:0] rgb,          // G R B... as {G, R, B}
@@ -95,6 +103,12 @@ reg  [4:0] gm = 0;
 wire       g320 = mk2 & gm[4];
 wire       gmono = mk2 & ~gm[4] & gm[3];
 wire       gattr = mk2 & ~gm[4] & ~gm[3];      // 640x200 in the text's colours
+// SR N80SR mode, taken with gm: {colour, 320 wide, graphics on, 53h bits 6-1, 33h bits 3-2}
+reg [10:0] g2 = 0;
+wire       g2_col = g2[10], g2_wide = g2[9], g2_on = g2[8];
+wire [6:1] g2_m = g2[7:2];
+wire       g2_pr1 = g2[0], g2_pr2 = g2[1];
+wire       attr_rev = srv2 ? (g2_on & ~g2_col) : gattr;   // reverse cells: text black, graphics inverted
 
 assign dout = status[3] ? (status & 8'hEF) : status;
 
@@ -345,7 +359,7 @@ always @(*) begin
 	if (~w80) pat = hc[0] ? {pat[3], pat[3], pat[2], pat[2], pat[1], pat[1], pat[0], pat[0]}
 	                      : {pat[7], pat[7], pat[6], pat[6], pat[5], pat[5], pat[4], pat[4]};
 	if ((ca[2] & lc == 5'd0) | (ca[3] & lc >= 5'd7)) pat = 8'hFF;
-	if (ca[0] & ~gattr) pat = ~pat;
+	if (ca[0] & ~attr_rev) pat = ~pat;
 end
 
 wire cur_hit = cur_on & (row == cur_y) & (src == cur_x) & ~(cur_type[0] & blink_cur);
@@ -373,34 +387,61 @@ end
 
 //----------------------------------------------------------------------------
 // mkII graphics: the byte under each cell, fetched with it; the mode taken at each frame's end (CSCP's
-// snapshot at vblank), the background colour at each line (raster colour changes)
+// snapshot at vblank), the background colour and the SR's palette at each line (raster colour changes)
 //----------------------------------------------------------------------------
 
 reg  [7:0] gline = 0;               // displayed line, 0-199
 reg  [2:0] bg = 0;
+reg [23:0] pl = 24'hFAC688;         // the palette for this line
 always @(posedge clk) if (ce_pix) begin
 	if (frame_end) gline <= 0;
 	else if (line_end & (row < L) & (gline != 8'd255)) gline <= gline + 1'd1;
 	if (line_end) bg <= mk2 ? gmode[7:5] : 3'd0;
-	if (line_end & (row == L)) gm <= {gmode[4], gmode[2], gmode[3] & ~dmask[1], dmask[0], gmode[2]};
+	if (line_end) pl <= pal;
+	if (line_end & (row == L)) begin
+		gm <= {gmode[4], gmode[2], gmode[3] & ~dmask[1], dmask[0], gmode[2]};
+		g2 <= {gmode[4], gmode[2], gmode[3], dmask[6:1], prio};
+	end
 end
 
-reg  [7:0] gb = 0, next_g = 0, gcur = 0;
+// fetch: page 0 (or the 640 line's byte) at sub 0, page 1 at sub 2
+reg [23:0] gb = 0, gb1 = 0;
+reg  [7:0] next_g = 0, gcur = 0;
 reg        next_rev = 0, crev = 0;
 reg  [2:0] next_acol = 0, acol = 0;   // the cell's own colour (attribute mode)
+reg [47:0] next_e = 0, ecur = 0;      // SR: {G1, R1, B1, G0, R0, B0}, 8 dots each
+wire       gvis = gline < 8'd200;
+wire       wide = srv2 & g2_wide;
+
+function [7:0] dbl(input [7:0] b, input lo);   // a 320 byte's half for this cell, each pixel two dots
+	reg [3:0] n;
+	begin
+		n = lo ? b[3:0] : b[7:4];
+		dbl = {n[3], n[3], n[2], n[2], n[1], n[1], n[0], n[0]};
+	end
+endfunction
 
 always @(posedge clk) begin
-	if (sub == 4'd0) gv_addr <= {gline[7:0], 6'd0} + {gline[7:0], 4'd0} + {7'd0, hc};   // gline x 80 + hc
-	if (sub == 4'd2) gb <= (mk2 & gm[2] & (gline < 8'd200)) ? gv_q : 8'h00;
+	if (sub == 4'd0) gv_addr <= wide ? {gline[7:0], 5'd0} + {gline[7:0], 3'd0} + {8'd0, hc[6:1]}   // x 40
+	                                 : {gline[7:0], 6'd0} + {gline[7:0], 4'd0} + {7'd0, hc};      // x 80
+	if (sub == 4'd2) begin
+		gb <= ((mk2 & gm[2] & ~srv2) | (srv2 & g2_on)) & gvis ? gv_q : 24'd0;
+		gv_addr <= gv_addr + 14'h2000;
+	end
+	if (sub == 4'd4) gb1 <= (srv2 & g2_on & gvis) ? gv_q : 24'd0;
 	if (sub == 4'd5) begin
-		next_rev <= gattr & ca[0];
+		next_rev <= attr_rev & ca[0];
 		next_acol <= ca[7:5] | {3{mono}};
-		next_g <= (gattr & ca[0]) ? ~gb : gb;
+		next_g <= (gattr & ca[0]) ? ~gb[7:0] : gb[7:0];
+		next_e <= wide ? {dbl(gb1[23:16], hc[0]), dbl(gb1[15:8], hc[0]), dbl(gb1[7:0], hc[0]),
+		                  dbl(gb[23:16], hc[0]), dbl(gb[15:8], hc[0]), dbl(gb[7:0], hc[0])}
+		               : {24'd0, gb};
 	end
 	if (ce_pix & (dot == 3'd7)) begin
 		gcur <= next_g;
 		crev <= next_rev;
 		acol <= next_acol;
+		ecur <= next_e;
 	end
 end
 
@@ -408,14 +449,62 @@ end
 wire       tpix = shifter[7] & ~(mk2 & gm[1]);
 wire       gpix = gcur[~dot];
 wire [1:0] gi = gcur[{~dot[2:1], 1'b1} -: 2];
-reg  [2:0] pix;
+
+// the mkII (and the SR in N80/N mode): 33h bit 3 on the SR puts a lit graphics pixel over the text
+reg  [2:0] pix1, gcol1;
+reg        gnz1;
 always @(*) begin
-	if (~mk2)          pix = shifter[7] ? col : 3'd0;
-	else if (g320)     pix = tpix ? col : (gi == 2'd3) ? bg : (~gm[2] & gi == 2'd0) ? 3'd0 : {gi[1], gi[0], gm[0]};
-	else if (gmono)    pix = tpix ? col : gpix ? bg : 3'd0;
-	else               pix = tpix ? (crev ? 3'd0 : col) : gpix ? ((acol == 3'd0) ? bg : acol) : bg;
+	gcol1 = g320 ? ((gi == 2'd3) ? bg : (~gm[2] & gi == 2'd0) ? 3'd0 : {gi[1], gi[0], gm[0]}) :
+	        gmono ? (gpix ? bg : 3'd0) : (gpix ? ((acol == 3'd0) ? bg : acol) : bg);
+	gnz1 = g320 ? (gi != 2'd0) : gpix;
+	if (~mk2)          pix1 = shifter[7] ? col : 3'd0;
+	else if (sr & g2_pr2 & gnz1) pix1 = gcol1;
+	else if (g320)     pix1 = tpix ? col : gcol1;
+	else if (gmono)    pix1 = tpix ? col : gcol1;
+	else               pix1 = tpix ? (crev ? 3'd0 : col) : gcol1;
 end
 
-always @(*) rgb = (~hblank & ~vblank) ? pix : 3'd0;
+// the SR in N80SR mode (CSCP draw_screen, V2): graphics index 0-8 (8: the cell's colour 0), text index 0-8
+wire [2:0] k = ~dot;
+wire       B0 = ecur[k], R0 = ecur[8 + k], G0 = ecur[16 + k];
+wire       B1 = ecur[24 + k], R1 = ecur[32 + k], G1 = ecur[40 + k];
+reg  [3:0] gx, tx;
+reg        goff;                     // colour graphics off: colour 0 black
+reg  [2:0] p0, p1, front, back;
+reg        lit;
+function [2:0] palc(input [23:0] p, input [2:0] i);
+	palc = p[{2'd0, i} * 5'd3 +: 3];
+endfunction
+always @(*) begin
+	p0 = g2_m[1] ? 3'd0 : {G0, R0, B0};
+	p1 = g2_m[2] ? 3'd0 : {G1, R1, B1};
+	front = g2_pr1 ? p1 : p0;
+	back = g2_pr1 ? p0 : p1;
+	lit = 0;
+	if (g2_col) begin
+		if (~g2_wide) begin
+			goff = ~g2_on | g2_m[1];
+			gx = goff ? 4'd0 : {1'b0, G0, R0, B0};
+		end
+		else begin
+			goff = ~g2_on | (g2_m[1] & g2_m[2]);
+			gx = goff ? 4'd0 : {1'b0, (front != 3'd0) ? front : back};
+		end
+	end
+	else begin
+		goff = 0;
+		if (~g2_wide) lit = g2_on & (crev ^ ((B0 & ~g2_m[1]) | (R0 & ~g2_m[2]) | (G0 & ~g2_m[3])));
+		else lit = g2_on & ~(&g2_m) & ((crev & ~w80) ^ ((B0 & ~g2_m[1]) | (R0 & ~g2_m[2]) | (G0 & ~g2_m[3]) |
+		                                                (B1 & ~g2_m[4]) | (R1 & ~g2_m[5]) | (G1 & ~g2_m[6])));
+		gx = lit ? ((acol == 3'd0) ? 4'd8 : {1'b0, acol}) : 4'd0;
+	end
+	tx = ~tpix ? 4'd0 : (crev | col == 3'd0) ? 4'd8 : {1'b0, col};
+end
+wire [2:0] pg0 = goff ? 3'd0 : g2_col ? palc(pl, 3'd0) : bg;
+wire [2:0] pgx = (gx == 4'd0 || gx == 4'd8) ? pg0 : palc(pl, gx[2:0]);
+wire [2:0] ptx = (tx == 4'd8) ? 3'd0 : tx[2:0];
+wire [2:0] pix2 = (tx != 4'd0 && (~g2_pr2 || gx == 4'd0)) ? ptx : pgx;
+
+always @(*) rgb = (~hblank & ~vblank) ? (srv2 ? pix2 : pix1) : 3'd0;
 
 endmodule

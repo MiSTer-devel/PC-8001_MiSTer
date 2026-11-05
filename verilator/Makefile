@@ -24,7 +24,9 @@ T80_SRC = $(RTL)/T80_v350/T80_ALU.vhd $(RTL)/T80_v350/T80_Reg.vhd $(RTL)/T80_v35
 	$(RTL)/T80_v350/T80.vhd $(RTL)/T80_v350/T80s.vhd
 GEN_V = $(GEN)/t80s.v
 
-V_SRC = sim.v $(RTL)/pc8001.sv $(RTL)/pc8001_crtc.sv $(RTL)/pc8001_kbd.sv $(RTL)/pit8253.sv $(RTL)/upd1990a.sv $(RTL)/i8257.sv $(RTL)/i8251.sv $(RTL)/pc8001_cmt.sv $(RTL)/pc80s31.sv $(RTL)/upd765_lite.sv $(RTL)/d88_media.sv $(RTL)/i8255_m0.sv $(RTL)/dpram_tdp.sv $(RTL)/rom_store.sv $(RTL)/ddr_arb.sv $(GEN_V)
+# the SR's YM2203 (jt03, from jt12; its SSG is jt49)
+JT_SRC = $(wildcard $(RTL)/jt12/*.v) $(wildcard $(RTL)/jt49/*.v)
+V_SRC = sim.v $(RTL)/pc8001.sv $(RTL)/pc8001_crtc.sv $(RTL)/pc8001_kbd.sv $(RTL)/pit8253.sv $(RTL)/upd1990a.sv $(RTL)/i8257.sv $(RTL)/i8251.sv $(RTL)/pc8001_cmt.sv $(RTL)/pc80s31.sv $(RTL)/upd765_lite.sv $(RTL)/d88_media.sv $(RTL)/i8255_m0.sv $(RTL)/dpram_tdp.sv $(RTL)/rom_store.sv $(RTL)/ddr_arb.sv $(JT_SRC) $(GEN_V)
 
 V_OPT = -O3 -I$(RTL) --x-assign fast --x-initial fast --noassert \
 	-Wno-fatal -Wno-PINMISSING -Wno-WIDTH -Wno-UNOPTFLAT -Wno-CASEINCOMPLETE \

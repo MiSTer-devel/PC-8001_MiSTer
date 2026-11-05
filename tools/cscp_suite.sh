@@ -34,4 +34,25 @@ for v in 09 1d 4d 29; do
 done
 # interrupts and kanji: tools/mk2int_asm.py counts timer and VRTC interrupts over 60 frames; then kanji ROM reads
 MODEL=mk2 $T mk2int 7600 "10 a\$=\"F33EC1ED47ED5E2140C02204C1214AC02202C12100002200C22202C2CD33C03E03D3E4D3E6FB063CCD33C010FBF3AFD3E6FBC9DB40E62020FADB40E62028FAC9E52A00C2232200C21808E52A02C2232202C2F53E03D3E4F1E1FBED4D\"\n20 for i=0 to len(a\$)/2-1:poke &hc000+i,val(\"&h\"+mid\$(a\$,i*2+1,2)):next\n30 def usr=&hc000:x=usr(0):out &he8,4:out &he9,9:print peek(&hc200)+256*peek(&hc201);peek(&hc202)+256*peek(&hc203);inp(&he8);inp(&he9);:out &he8,&h21:out &he9,&h43:print inp(&he8);inp(&he9)\nrun\n" -- --type-rate 6:6 || rc=1
+# PC-8001mkIISR: N80 (mkII-compatible), N and N80SR modes
+MODEL=sr $T srboot 300,600                                                || rc=1
+MODEL=sr NMODE=1 $T srn 300,600                                           || rc=1
+MODEL=sr V2=1 $T srv2 300,600                                             || rc=1
+# N80SR graphics (tools/srg_asm.py: three planes filled, 31h/33h/53h set, [reversed palette]): 640 and 320 colour,
+# 320 page 1 / plane mask, 640 and 320 attribute, PR2 (graphics over text), graphics off
+while read n a b c r; do tools/srg_run.sh $n $a $b $c $r || rc=1; done <<EOT
+srg_c640 18 80 00 rev
+srg_c320 1C 80 00
+srg_c320p 1C 84 00
+srg_c320h 1C 84 04
+srg_a640 28 80 00
+srg_a320 4C 80 00 rev
+srg_a320m 0C 80 14
+srg_pr2 18 88 00
+srg_off 18 80 02
+EOT
+# ALU (34h/35h; tools/sralu_asm.py): set/invert/clear, copy, R->B, B->R and the colour compare
+MODEL=sr V2=1 $T sralu 12000 "$(python3 tools/sralu_asm.py | python3 tools/ml_text.py)" -- --type-rate 6:6 || rc=1
+# YM2203 (tools/sropn_asm.py): timer A interrupts on level 4 over 60 frames, status, SSG register readback
+MODEL=sr V2=1 $T sropn 9000 "$(python3 tools/sropn_asm.py | python3 tools/ml_text.py | sed 's/a=usr(0)/a=usr(0):print peek(\&hc200)+256*peek(\&hc201);peek(\&hc202);peek(\&hc203)/')" -- --type-rate 6:6 || rc=1
 exit $rc

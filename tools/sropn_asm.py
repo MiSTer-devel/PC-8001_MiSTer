@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+# SR OPN test (tools/cscp_suite.sh sropn): prints machine code (at C000h) as hex. IM 2 with I = C1h; the YM2203's
+# timer A (NA = 200h) interrupts on level 4 (vector 08h, E4h = 5); the handler counts at C200h and restarts
+# the timer (27h = 15h). Counted over 60 frames timed by polling 40h bit 5; then the status (44h) at C202h and
+# SSG register 07h written 2Ah and read back (45h) at C203h. I and E4h (07h) are restored for BASIC.
+org = 0xC000
+c = []; labels = {}; fix = []
+def L(n): labels[n] = org + len(c)
+def b(*x): c.extend(x)
+def w(n): fix.append((len(c), n)); c.extend([0, 0])
+def jr(op, n): fix.append((len(c) + 1, ('rel', n))); c.extend([op, 0])
+def opn(reg, v): b(0x3E, reg, 0xD3, 0x44, 0x3E, v, 0xD3, 0x45)
+b(0xF3, 0xED, 0x57, 0x32, 0x10, 0xC2)                 # DI; LD A,I; LD (C210h),A
+b(0x3E, 0xC1, 0xED, 0x47, 0xED, 0x5E)                # LD A,C1h; LD I,A; IM 2
+b(0x21); w('H'); b(0x22, 0x08, 0xC1)                  # level 4
+b(0x21, 0, 0, 0x22, 0x00, 0xC2)
+b(0x3E, 0x00, 0xD3, 0xE6)                             # E6h: timer, VRTC, RxRDY off
+opn(0x24, 0x80); opn(0x25, 0x00); opn(0x27, 0x15)
+b(0xCD); w('SYNC')
+b(0x3E, 0x05, 0xD3, 0xE4, 0xFB)                       # E4h = 5; EI
+b(0x06, 60)
+L('LP'); b(0xCD); w('SYNC'); jr(0x10, 'LP')
+b(0xF3)
+opn(0x27, 0x30)
+b(0xDB, 0x44, 0xE6, 0x7F, 0x32, 0x02, 0xC2)           # IN A,(44h); AND 7Fh (busy: CSCP has none); LD (C202h),A
+opn(0x07, 0x2A)
+b(0xDB, 0x45, 0x32, 0x03, 0xC2)                       # IN A,(45h); LD (C203h),A
+b(0x3A, 0x10, 0xC2, 0xED, 0x47)                       # LD A,(C210h); LD I,A
+b(0x3E, 0x07, 0xD3, 0xE4, 0xFB, 0xC9)                 # E4h = 7 (as BASIC); EI; RET
+L('SYNC'); b(0xDB, 0x40, 0xE6, 0x20); jr(0x20, 'SYNC')
+L('S2'); b(0xDB, 0x40, 0xE6, 0x20); jr(0x28, 'S2'); b(0xC9)
+L('H'); b(0xF5, 0xE5, 0x2A, 0x00, 0xC2, 0x23, 0x22, 0x00, 0xC2)
+opn(0x27, 0x15)
+b(0x3E, 0x05, 0xD3, 0xE4, 0xE1, 0xF1, 0xFB, 0xED, 0x4D)
+for pos, n in fix:
+    if isinstance(n, tuple):
+        c[pos] = (labels[n[1]] - (org + pos + 1)) & 0xFF
+    else:
+        c[pos] = labels[n] & 0xFF; c[pos + 1] = labels[n] >> 8
+print(''.join('%02X' % x for x in c))

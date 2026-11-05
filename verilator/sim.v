@@ -9,6 +9,7 @@ module top
    input         reset /*verilator public_flat*/,
    input   [1:0] model,
    input         n_mode,
+   input         v2,
    input         ram16k,
    input         pcg_on,
    input  [64:0] rtc,
@@ -77,7 +78,7 @@ pc8001 pc8001
 (
    .clk_sys(clk_sys),
    .reset(reset),
-   .model(model), .n_mode(n_mode), .ram16k(ram16k), .pcg_on(pcg_on), .rtc(rtc), .kbd_us(kbd_us),
+   .model(model), .n_mode(n_mode), .v2(v2), .ram16k(ram16k), .pcg_on(pcg_on), .rtc(rtc), .kbd_us(kbd_us),
    .ps2_key(ps2_key),
    .tape_turbo(tape_turbo),
    .tape_rewind(tape_rewind),

@@ -1,8 +1,9 @@
 // Each model's ROMs, kept in DDR3 (as the PC-6001 core's rtl/rom_store.sv): Main loads boot.rom (ioctl index
-// 00h: the PC-8001's) and boot1.rom (40h: the mkII's, n80_2.rom 32 KB then kanji1.rom 128 KB) at the core's
-// start, but OSD Model can change at any reset. At the end of a reset, when the core's 32 KB main ROM (rom in
-// rtl/pc8001.sv) holds another model's, the current model's is copied in, the machine held in reset meanwhile
-// (busy; ~3 ms). boot.rom also goes straight into the core as it loads (rtl/pc8001.sv), so the PC-8001 needs
+// 00h: the PC-8001's), boot1.rom (40h: the mkII's, n80_2.rom 32 KB then kanji1.rom 128 KB) and boot2.rom (80h:
+// the SR's, n80_2sr.rom 32 KB, n80_3.rom 40 KB, font80sr.rom 4 KB at 0, 8000h, 12000h, then kanji1.rom at
+// 20000h) at the core's start, but OSD Model can change at any reset. At the end of a reset, when the core's
+// ROMs (rtl/pc8001.sv) hold another model's, the current model's are copied in (rom_a: the byte in the set; the
+// SR's first 76 KB, the others' 32 KB), the machine held in reset meanwhile (busy; ~3-8 ms). boot.rom also goes straight into the core as it loads (rtl/pc8001.sv), so the PC-8001 needs
 // no copy at power-on.
 //
 // The kanji ROM stays in DDR3: kanji_rd fetches the two bytes of character line kanji_a (E8h/E9h), kanji_busy
@@ -15,7 +16,7 @@ module rom_store #(parameter [28:0] BASE = 29'h06020000)   // past the two disk 
 (
 	input             clk,
 	input             reset,          // the machine's reset: a copy may follow its end
-	input       [1:0] model,          // 0 the PC-8001 (set 0), 1 the mkII (set 1)
+	input       [1:0] model,          // 0 the PC-8001 (set 0), 1 the mkII (set 1), 2 the SR (set 2)
 
 	input             ioctl_download,
 	input       [7:0] ioctl_index,
@@ -25,7 +26,7 @@ module rom_store #(parameter [28:0] BASE = 29'h06020000)   // past the two disk 
 	output            ioctl_wait,
 
 	output            busy,
-	output reg [14:0] rom_a,
+	output reg [16:0] rom_a,
 	output reg  [7:0] rom_d,
 	output reg        rom_we = 0,
 
@@ -47,7 +48,7 @@ module rom_store #(parameter [28:0] BASE = 29'h06020000)   // past the two disk 
 
 assign ddr_burstcnt = 8'd1;
 
-wire       dl_ours = ioctl_index[5:0] == 0 && ioctl_index[7:6] <= 2'd1;
+wire       dl_ours = ioctl_index[5:0] == 0 && ioctl_index[7:6] <= 2'd2;
 wire [1:0] dl_set  = ioctl_index[7:6];
 
 // downloads: each byte goes to DDR3 with its byte enable; the download waits while one is going out
@@ -57,7 +58,8 @@ assign ioctl_wait = wr_pend;
 reg        reset_d = 0, dl_d = 0, copy_req = 0;
 reg  [1:0] loaded = 2'd0;                 // the set in the core's ROM (boot.rom goes there as it loads)
 reg        copying = 0, rd_wait = 0;
-reg [11:0] word;
+reg [13:0] word;
+wire [13:0] last = (model == 2'd2) ? 14'h25FF : 14'h0FFF;   // SR: to 12FFFh, else 7FFFh
 reg  [2:0] lane;
 reg [63:0] data;
 reg        have = 0;                      // data holds a word still being copied out
@@ -94,7 +96,7 @@ always @(posedge clk) begin
 	end
 	else if (copying) begin
 		if (!have && !rd_wait && !ddr_rd) begin
-			ddr_addr <= BASE + {12'd0, model, 15'd0} + {17'd0, word};
+			ddr_addr <= BASE + {12'd0, model, 15'd0} + {15'd0, word};
 			ddr_rd <= 1'b1;
 			rd_wait <= 1'b1;
 		end
@@ -109,13 +111,15 @@ always @(posedge clk) begin
 			if (lane == 3'd7) begin
 				have <= 0;
 				word <= word + 1'd1;
-				if (&word) begin copying <= 0; loaded <= model; end
+				if (word == last) begin copying <= 0; loaded <= model; end
 			end
 		end
 	end
-	// kanji: the mkII set's bytes 8000h + 2a, 8000h + 2a + 1 (one word, lanes 2a % 8 and +1)
+	// kanji: the mkII set's bytes 8000h + 2a, 8000h + 2a + 1 (one word, lanes 2a % 8 and +1); the SR set's at
+	// 20000h
 	else if (k_pend && !k_wait && !ddr_rd && !wr_pend && !ddr_we) begin
-		ddr_addr <= BASE + {12'd0, 2'd1, 15'd0} + 29'h1000 + {15'd0, k_a[15:2]};
+		ddr_addr <= BASE + ((model == 2'd2) ? {12'd0, 2'd2, 15'd0} + 29'h4000 : {12'd0, 2'd1, 15'd0} + 29'h1000) +
+		            {15'd0, k_a[15:2]};
 		ddr_rd <= 1'b1;
 		k_pend <= 0;
 		k_wait <= 1'b1;

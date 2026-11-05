@@ -12,6 +12,7 @@
 # SWAP=FRAME:FILE puts FILE in drive 1 before FRAME (CSCP --swap-disk); SWAP2 the same for drive 2.
 # TAPE=FILE mounts a .cmt/.t88 in both (the sim at 5x turbo; CSCP feeds its 8251 FIFO at 5 ms a byte).
 # MODEL=mk2 runs the PC-8001mkII (CSCP's pc8001mk2 build; sim --mk2); NMODE=1 its N-BASIC mode.
+# MODEL=sr the PC-8001mkIISR (pc8001mk2sr; sim --sr), N80 mode; NMODE=1 N mode, V2=1 N80SR mode.
 # Output: runs/cmp/NAME/{sim,cscp}/frame_NNNNNN.png. Exit 0 when every frame is identical.
 cd "$(dirname "$0")/.."
 B=/Users/alans/dev2/common_source_code/build
@@ -19,6 +20,10 @@ m=""; smodel=""; cmodel=""
 if [ "$MODEL" = mk2 ]; then
 	m=mk2; smodel="--mk2"
 	[ -n "$NMODE" ] && { smodel="$smodel --n-mode"; cmodel="--boot-mode 2"; }
+elif [ "$MODEL" = sr ]; then
+	m=mk2sr; smodel="--sr"
+	[ -n "$NMODE" ] && { smodel="$smodel --n-mode"; cmodel="--boot-mode 2"; }
+	[ -n "$V2" ] && { smodel="$smodel --v2"; cmodel="--boot-mode 1"; }
 fi
 CSCP=${CSCP:-$B/pc8001$m.app/Contents/MacOS/pc8001$m}
 AT=${AT:-300}

@@ -57,7 +57,7 @@ assign VIDEO_ARY = (!ar) ? 12'd3 : 12'd0;
 // at the next reset (cfg); "Changes pending" shows until then.
 // Tape per ~/dev2/tape-standard.md: Tape speed and Tape overlay act at once (out of "Changes pending").
 // Status bits: 0 reset, 1 memory, 3 rewind tape, 4 tape speed, 5 tape overlay, 6 PCG, 7 keyboard, 8-9 model,
-// 10 mkII mode, 121-122 aspect ratio.
+// 10-11 mkII/SR mode (N80, N, N80SR), 121-122 aspect ratio.
 `include "build_id.v"
 // Tape turbo factor: the Z80 and the deck run TURBO times as fast while the deck plays (rtl/pc8001.sv)
 localparam int TURBO = 5;
@@ -78,8 +78,8 @@ localparam CONF_STR = {
 	"h0-,Changes pending;",
 	"R[0],Apply and reset;",
 
-	"P1O[9:8],Model,PC-8001,PC-8001mkII;",
-	"P1O[10],mkII mode,N80-BASIC,N-BASIC;",
+	"P1O[9:8],Model,PC-8001,PC-8001mkII,PC-8001mkIISR;",
+	"P1O[11:10],Mode (mkII/SR),N80-BASIC,N-BASIC,N80SR-BASIC (SR);",
 	"P1O[1],Memory (PC-8001),32 KB,16 KB;",
 	"P1O[6],PCG-8100,Off,On;",
 	"P1O[7],Keyboard,JP (positions),US (symbols);",
@@ -173,7 +173,7 @@ wire reset = RESET | status[0] | buttons[1] | (ioctl_download & (ioctl_index[5:0
 // The settings the machine runs with, taken from the OSD at every reset
 reg [127:0] cfg;
 always @(posedge clk_sys) if (reset) cfg <= status;
-wire osd_pending = {status[10:8], status[6], status[1], status[122:121]} != {cfg[10:8], cfg[6], cfg[1], cfg[122:121]};
+wire osd_pending = {status[11:8], status[6], status[1], status[122:121]} != {cfg[11:8], cfg[6], cfg[1], cfg[122:121]};
 
 //////////////////////////////////////////////////////////////////
 
@@ -191,7 +191,8 @@ pc8001 #(.TURBO(TURBO)) pc8001
 	.clk_sys(clk_sys),
 	.reset(reset),
 	.model(cfg[9:8]),
-	.n_mode(cfg[10]),
+	.n_mode(cfg[11:10] == 2'd1),
+	.v2(cfg[11:10] == 2'd2),
 	.ram16k(cfg[1]),
 	.pcg_on(cfg[6]),
 	.rtc(rtc),
