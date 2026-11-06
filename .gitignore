@@ -51,3 +51,4 @@ __pycache__/
 
 # tester zips (contain ROMs and games)
 releases/
+verilator/tb_cmt/obj_dir/

@@ -59,7 +59,7 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       the next fetched during a character's time). Tester report: Pac Land (SR, 104-126 KB a side) stopped at the
       end of loading, the image cut at 64 KB. verilator/tb_cmt: every Pac Land side (both dumps), River Patrol and
       Kumo Vader play byte for byte. CSCP: side A reaches the title ("PUSH RETURN KEY TO LOAD START") at ~25000.
-- [ ] Pac Land on hardware: side A to the title, then the next load.
+- [x] Pac Land on hardware (Mister 126): side A to the title, round 1 loads and plays. Sides B-D not tried.
 - [ ] .n80 (memory image at 8000h, start at FF3Dh with SP from FF3Eh): needs a CPU start path.
 - [ ] Next-step hint (tape standard): read the name from the tape, "TYPE CLOAD"/"MON L".
 - [ ] CSAVE to a file (8251 transmit to a .cmt).
