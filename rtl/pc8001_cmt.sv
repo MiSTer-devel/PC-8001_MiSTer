@@ -8,11 +8,15 @@
 // Carrier detect (port 40h bit 2, as CSCP's usart_dcd): set while a carrier tag plays and while the deck is
 // stopped, clear while data plays. A .cmt has no carrier tags: it gets a 1 s leader (carrier) at the start and
 // each time the motor starts again (a CLOAD, then MON L of the next block).
-// The image is loaded whole (ioctl index 1; index bits 7-6 = 1 for .t88) into 64 KB of block RAM.
+// The image is loaded whole (ioctl index 1; index bits 7-6 = 1 for .t88) into DDR3, up to 512 KB (Pac Land's
+// sides are 104-126 KB): each byte written with its byte enable, the download waiting meanwhile (ioctl_wait).
+// The player reads through one cached 64-bit word (q is byte ptr of it; ready when the word holds ptr), fetched
+// while a character's time runs, so the bytes keep their timing.
 // TURBO: tick rate multiplier while the deck plays (the CPU runs as many times faster; tape standard).
 // Sources: CSCP pc88.cpp play_tape / EVENT_CMT_SEND; the T88 format notes in QUASI88 and CSCP.
 
-module pc8001_cmt
+module pc8001_cmt #(parameter [28:0] BASE = 29'h06040000,   // DDR3 word address: past the ROM store
+                    parameter [24:0] CLK_HZ = 25'd28636364)   // clk (a testbench may use less)
 (
 	input             clk,            // 28.636 MHz
 	input             reset,          // the image stays; the deck is not rewound
@@ -23,6 +27,7 @@ module pc8001_cmt
 	input             ioctl_wr,
 	input      [24:0] ioctl_addr,
 	input       [7:0] ioctl_dout,
+	output            ioctl_wait,
 
 	input             motor,
 	input             baud1200,
@@ -35,25 +40,80 @@ module pc8001_cmt
 
 	output reg        loaded = 0,
 	output reg        too_big = 0,
-	output     [16:0] position,
-	output reg [16:0] length = 0
+	output     [19:0] position,
+	output reg [19:0] length = 0,
+
+	input             ddr_busy,
+	output reg [28:0] ddr_addr,
+	input      [63:0] ddr_dout,
+	input             ddr_dout_ready,
+	output reg        ddr_rd = 0,
+	output reg [63:0] ddr_din,
+	output reg  [7:0] ddr_be,
+	output reg        ddr_we = 0
 );
 
 //----------------------------------------------------------------------------
 // Image
 //----------------------------------------------------------------------------
 
-reg  [7:0] img[0:65535];
-reg  [7:0] q;
-reg [16:0] ptr = 0;
-wire [15:0] ra = ptr[15:0];       // q is img[ptr] one clock after ptr settles
+reg [19:0] ptr = 0;
 wire       tape_dl = ioctl_download & (ioctl_index[5:0] == 6'd1);
 reg        is_t88 = 0;
 reg        old_dl = 0;
 
+reg        wr_pend = 0;          // a download byte not yet taken by DDR3 (the download waits)
+reg        wq = 0;               // ... still to be issued (a read is out)
+reg [15:0] wa;
+reg  [7:0] wd;
+reg  [2:0] wl;
+assign ioctl_wait = wr_pend;
+
+reg [63:0] cw;                    // the cached word, word address cw_a
+reg [15:0] cw_a;
+reg        cw_ok = 0, rd_out = 0, rd_stale = 0;   // stale: a download began while the read was out
+reg [15:0] rd_a;
+wire       ready = cw_ok & (cw_a == ptr[18:3]);
+wire [7:0] q = cw[{ptr[2:0], 3'b000} +: 8];
+
 always @(posedge clk) begin
-	if (tape_dl & ioctl_wr & ~ioctl_addr[24:16]) img[ioctl_addr[15:0]] <= ioctl_dout;
-	q <= img[ra];
+	if (!ddr_busy) begin ddr_rd <= 0; ddr_we <= 0; end
+
+	// a read's word: kept unless a download overlapped it
+	if (rd_out & ddr_dout_ready) begin
+		rd_out <= 0;
+		rd_stale <= 0;
+		if (~rd_stale & ~tape_dl) begin cw <= ddr_dout; cw_a <= rd_a; cw_ok <= 1'b1; end
+	end
+
+	if (tape_dl) begin
+		cw_ok <= 0;
+		if (rd_out) rd_stale <= 1'b1;
+	end
+
+	if (tape_dl & ioctl_wr & ~ioctl_addr[24:19]) begin
+		wa <= ioctl_addr[18:3]; wd <= ioctl_dout; wl <= ioctl_addr[2:0];
+		wq <= 1'b1;
+		wr_pend <= 1'b1;
+	end
+	else if (wq) begin
+		if (!rd_out && !ddr_rd) begin
+			ddr_addr <= BASE + {13'd0, wa};
+			ddr_din <= {8{wd}};
+			ddr_be <= 8'h01 << wl;
+			ddr_we <= 1'b1;
+			wq <= 0;
+		end
+	end
+	else if (wr_pend) begin
+		if (!ddr_we || !ddr_busy) wr_pend <= 0;
+	end
+	else if (!tape_dl && !rd_out && !ready && !ddr_rd) begin
+		ddr_addr <= BASE + {13'd0, ptr[18:3]};
+		rd_a <= ptr[18:3];
+		ddr_rd <= 1'b1;
+		rd_out <= 1'b1;
+	end
 end
 
 //----------------------------------------------------------------------------
@@ -64,8 +124,8 @@ reg [24:0] tacc = 0;
 reg        tick = 0;
 wire [24:0] tstep = 25'd4800 * turbo;
 always @(posedge clk) begin
-	if (tacc + tstep >= 25'd28636364) begin
-		tacc <= tacc + tstep - 25'd28636364;
+	if (tacc + tstep >= CLK_HZ) begin
+		tacc <= tacc + tstep - CLK_HZ;
 		tick <= 1;
 	end
 	else begin
@@ -110,8 +170,8 @@ always @(posedge clk) begin
 	end
 	else if (old_dl) begin
 		// download finished
-		length <= (ioctl_addr[24:16] != 0) ? 17'h10000 : {1'b0, ioctl_addr[15:0]} + 1'd1;
-		too_big <= ioctl_addr[24:16] != 0;
+		length <= (ioctl_addr[24:19] != 0) ? 20'h80000 : {1'b0, ioctl_addr[18:0]} + 1'd1;
+		too_big <= ioctl_addr[24:19] != 0;
 		is_t88 <= ioctl_index[7:6] == 2'd1;
 		loaded <= 1;
 		st <= P_START;
@@ -125,7 +185,7 @@ always @(posedge clk) begin
 	else if (motor & loaded) begin
 		case (st)
 		P_START: begin
-			ptr <= is_t88 ? 17'd24 : 17'd0;
+			ptr <= is_t88 ? 20'd24 : 20'd0;
 			tcnt <= 0;
 			// .cmt has no carrier: play a 1 s leader first (the ROM waits for carrier detect, 0C02h)
 			st <= is_t88 ? P_TAG : P_CARRIER;
@@ -140,7 +200,7 @@ always @(posedge clk) begin
 			if (ptr >= length) st <= P_END;
 			else begin
 				rd_wait <= 1;
-				if (rd_wait) begin
+				if (rd_wait & ready) begin
 					rd_wait <= 0;
 					case (k)
 					3'd0: tag[7:0] <= q;
@@ -177,7 +237,7 @@ always @(posedge clk) begin
 		end
 		P_CLEN: begin
 			rd_wait <= 1;
-			if (rd_wait) begin
+			if (rd_wait & ready) begin
 				rd_wait <= 0;
 				cwait <= {q, cwait[31:8]};
 				ptr <= ptr + 1'd1;
@@ -210,7 +270,7 @@ always @(posedge clk) begin
 				end
 			end
 		end
-		P_EMIT: begin
+		P_EMIT: if (ready) begin
 			rx_byte <= q;
 			rx_stb <= 1;
 			ptr <= ptr + 1'd1;

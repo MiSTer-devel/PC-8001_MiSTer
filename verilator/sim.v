@@ -33,8 +33,8 @@ module top
    output        tape_motor /*verilator public_flat*/,
    output        tape_loaded /*verilator public_flat*/,
    output        tape_turbo_on /*verilator public_flat*/,
-   output [16:0] tape_position /*verilator public_flat*/,
-   output [16:0] tape_length /*verilator public_flat*/,
+   output [19:0] tape_position /*verilator public_flat*/,
+   output [19:0] tape_length /*verilator public_flat*/,
 
    input         ioctl_download,
    input   [7:0] ioctl_index,
@@ -109,7 +109,7 @@ pc8001 pc8001
    .prn_wr(prn_wr), .prn_data(prn_data)
 );
 
-// DDR3 (sys/ddr_svc's side of emu): 2 MB from the disk images' base (512 KB each, then the ROM store), one access at a time, busy now and then and
+// DDR3 (sys/ddr_svc's side of emu): 2.5 MB from the disk images' base (512 KB each, then the ROM store), one access at a time, busy now and then and
 // reads coming back some clocks later, as the real one (from the PC-6001 core's sim)
 wire        ddr_rd, ddr_we;
 wire [28:0] ddr_addr;
@@ -117,9 +117,9 @@ wire [63:0] ddr_din;
 wire  [7:0] ddr_be;
 reg  [63:0] ddr_dout;
 reg         ddr_dout_ready = 0;
-reg  [63:0] ddr_mem[0:262143];   // 2 MB: the disk images (0, 10000h words) and the ROM store (20000h)
+reg  [63:0] ddr_mem[0:327679];   // 2.5 MB: the disk images (0, 10000h words), the ROM store (20000h), the tape (40000h)
 reg   [3:0] ddr_lat = 0;
-reg  [17:0] ddr_ra;
+reg  [18:0] ddr_ra;
 reg   [7:0] ddr_lfsr = 8'h5a;
 wire        ddr_busy = ddr_lfsr[0] & ddr_lfsr[3] | ddr_lat != 0;
 always @(posedge clk_sys) begin
@@ -130,10 +130,10 @@ always @(posedge clk_sys) begin
       if (ddr_lat == 1) begin ddr_dout <= ddr_mem[ddr_ra]; ddr_dout_ready <= 1; end
    end
    else if (!ddr_busy) begin
-      if (ddr_rd) begin ddr_ra <= ddr_addr[17:0]; ddr_lat <= 4'd10; end
+      if (ddr_rd) begin ddr_ra <= ddr_addr[18:0]; ddr_lat <= 4'd10; end
       if (ddr_we) begin : wr
          integer i;
-         for (i = 0; i < 8; i = i + 1) if (ddr_be[i]) ddr_mem[ddr_addr[17:0]][i*8 +: 8] <= ddr_din[i*8 +: 8];
+         for (i = 0; i < 8; i = i + 1) if (ddr_be[i]) ddr_mem[ddr_addr[18:0]][i*8 +: 8] <= ddr_din[i*8 +: 8];
       end
    end
 end

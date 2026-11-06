@@ -91,7 +91,7 @@ localparam CONF_STR = {
 	"P2O[122:121],Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
 	"P2O[5],Tape overlay,On,Off;",
 
-	"I,Tape ready (rewound),Tape too large (64 KB max),Disk too large (512 KB max),No disk unit (boot.rom without disk.rom);",
+	"I,Tape ready (rewound),Tape too large (512 KB max),Disk too large (512 KB max),No disk unit (boot.rom without disk.rom);",
 	"v,0;",
 	"V,v",`BUILD_DATE
 };
@@ -184,7 +184,7 @@ assign AUDIO_R = audio;
 wire ce_pix, HBlank, VBlank, HSync, VSync;
 wire [7:0] R, G, B;
 wire        tape_motor, tape_loaded, tape_too_big, tape_turbo_on;
-wire [16:0] tape_position, tape_length;
+wire [19:0] tape_position, tape_length;
 
 pc8001 #(.TURBO(TURBO)) pc8001
 (
@@ -283,8 +283,8 @@ tape_status tape_status
 	.loaded(tape_loaded),
 	.playing(tape_motor),
 	.fast(tape_turbo_on),
-	.position({15'd0, tape_position}),
-	.length({15'd0, tape_length}),
+	.position({12'd0, tape_position}),
+	.length({12'd0, tape_length}),
 	.hz(18'd55),
 	.hint(2'd0),
 	.status(tape_status_word),

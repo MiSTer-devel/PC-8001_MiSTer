@@ -46,7 +46,7 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
 
 ## 2. Cassette
 - [x] 8251 (rtl/i8251.sv): mode, command, status, receive from the deck; transmit accepted and dropped.
-- [x] Deck (rtl/pc8001_cmt.sv): .cmt / .t88 in 64 KB block RAM (F1 CMTT88), bytes at the line rate from the
+- [x] Deck (rtl/pc8001_cmt.sv): .cmt / .t88 (F1 CMTT88; now in DDR3, see below), bytes at the line rate from the
       8251 mode and 30h's baud; T88 carrier tags for their length; carrier detect (40h bit 2) as CSCP; a 1 s
       leader for .cmt at start and at each motor restart.
 - [x] Motor: 30h bit 3 = 1 is on (ROM 0BF3h/0C31h, MOTOR 1); the ROM leaves it on at idle with RS-232C
@@ -55,7 +55,11 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       tape status bar (rtl/tape_overlay.sv from the PC-6001 core), "Tape ready" / "too large" messages.
 - [x] CLOAD of .t88 (River Patrol, runs) and .cmt (Kumo Vader), then LIST: identical to CSCP. MON L of the
       machine-code block after CLOAD works.
-- [ ] Tapes over 64 KB (18 images in the sets, up to 512 KB): DDR3.
+- [x] Tapes up to 512 KB in DDR3 (word 06040000h, a third client behind a second ddr_arb; one cached word,
+      the next fetched during a character's time). Tester report: Pac Land (SR, 104-126 KB a side) stopped at the
+      end of loading, the image cut at 64 KB. verilator/tb_cmt: every Pac Land side (both dumps), River Patrol and
+      Kumo Vader play byte for byte. CSCP: side A reaches the title ("PUSH RETURN KEY TO LOAD START") at ~25000.
+- [ ] Pac Land on hardware: side A to the title, then the next load.
 - [ ] .n80 (memory image at 8000h, start at FF3Dh with SP from FF3Eh): needs a CPU start path.
 - [ ] Next-step hint (tape standard): read the name from the tape, "TYPE CLOAD"/"MON L".
 - [ ] CSAVE to a file (8251 transmit to a .cmt).

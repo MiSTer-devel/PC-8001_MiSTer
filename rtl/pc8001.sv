@@ -31,15 +31,15 @@ module pc8001 #(
 	output        tape_loaded,
 	output        tape_too_big,
 	output        tape_turbo_on,
-	output [16:0] tape_position,
-	output [16:0] tape_length,
+	output [19:0] tape_position,
+	output [19:0] tape_length,
 
 	input         ioctl_download,
 	input   [7:0] ioctl_index,
 	input         ioctl_wr,
 	input  [24:0] ioctl_addr,
 	input   [7:0] ioctl_dout,
-	output        ioctl_wait,     // boot1.rom going to DDR3 (rtl/rom_store.sv)
+	output        ioctl_wait,     // boot1.rom / boot2.rom / a tape going to DDR3 (rtl/rom_store.sv, rtl/pc8001_cmt.sv)
 
 	// the disk images (hps_io S0, S1) and DDR3 for them
 	input   [1:0] img_mounted,    // drives 0 and 1 (S0, S1)
@@ -754,6 +754,12 @@ reg turbo_l = 0;
 always @(posedge clk_sys) if (~tape_motor) turbo_l <= tape_turbo;
 assign tape_turbo_on = turbo_l & tape_motor & tape_loaded;
 
+wire        dc_busy, dc_ready, dc_rd, dc_we, dab_busy, dab_ready, dab_rd, dab_we;
+wire [28:0] dc_addr, dab_addr;
+wire [63:0] dc_din, dab_din;
+wire  [7:0] dc_be, dab_be;
+wire        rs_wait, cmt_wait;
+
 pc8001_cmt cmt
 (
 	.clk(clk_sys),
@@ -764,6 +770,7 @@ pc8001_cmt cmt
 	.ioctl_wr(ioctl_wr),
 	.ioctl_addr(ioctl_addr),
 	.ioctl_dout(ioctl_dout),
+	.ioctl_wait(cmt_wait),
 	.motor(tape_motor),
 	.baud1200(port30[5:4] == 2'b01),
 	.usart_mode(usart_mode),
@@ -774,7 +781,15 @@ pc8001_cmt cmt
 	.loaded(tape_loaded),
 	.too_big(tape_too_big),
 	.position(tape_position),
-	.length(tape_length)
+	.length(tape_length),
+	.ddr_busy(dc_busy),
+	.ddr_addr(dc_addr),
+	.ddr_dout(ddr_dout),
+	.ddr_dout_ready(dc_ready),
+	.ddr_rd(dc_rd),
+	.ddr_din(dc_din),
+	.ddr_be(dc_be),
+	.ddr_we(dc_we)
 );
 
 //----------------------------------------------------------------------------
@@ -830,13 +845,15 @@ pc80s31 disk
 );
 
 //----------------------------------------------------------------------------
-// The models' ROMs (rtl/rom_store.sv) and DDR3: the disk unit and the ROM store share the port
+// The models' ROMs (rtl/rom_store.sv) and DDR3: the disk unit and the ROM store share one arbiter, which shares
+// the port with the tape (rtl/pc8001_cmt.sv)
 //----------------------------------------------------------------------------
 
 wire        da_busy, da_ready, da_rd, da_we, db_busy, db_ready, db_rd, db_we;
 wire [28:0] da_addr, db_addr;
 wire [63:0] da_din, db_din;
 wire  [7:0] da_be, db_be;
+assign ioctl_wait = rs_wait | cmt_wait;
 
 rom_store rom_store
 (
@@ -848,7 +865,7 @@ rom_store rom_store
 	.ioctl_wr(ioctl_wr),
 	.ioctl_addr(ioctl_addr),
 	.ioctl_dout(ioctl_dout),
-	.ioctl_wait(ioctl_wait),
+	.ioctl_wait(rs_wait),
 	.busy(rs_busy),
 	.rom_a(rs_a),
 	.rom_d(rs_d),
@@ -875,6 +892,17 @@ ddr_arb ddr_arb
 	.a_busy(da_busy), .a_dout_ready(da_ready),
 	.b_rd(db_rd), .b_we(db_we), .b_addr(db_addr), .b_din(db_din), .b_be(db_be),
 	.b_busy(db_busy), .b_dout_ready(db_ready),
+	.ddr_busy(dab_busy), .ddr_dout_ready(dab_ready),
+	.ddr_rd(dab_rd), .ddr_we(dab_we), .ddr_addr(dab_addr), .ddr_din(dab_din), .ddr_be(dab_be)
+);
+
+ddr_arb ddr_arb2
+(
+	.clk(clk_sys),
+	.a_rd(dab_rd), .a_we(dab_we), .a_addr(dab_addr), .a_din(dab_din), .a_be(dab_be),
+	.a_busy(dab_busy), .a_dout_ready(dab_ready),
+	.b_rd(dc_rd), .b_we(dc_we), .b_addr(dc_addr), .b_din(dc_din), .b_be(dc_be),
+	.b_busy(dc_busy), .b_dout_ready(dc_ready),
 	.ddr_busy(ddr_busy), .ddr_dout_ready(ddr_dout_ready),
 	.ddr_rd(ddr_rd), .ddr_we(ddr_we), .ddr_addr(ddr_addr), .ddr_din(ddr_din), .ddr_be(ddr_be)
 );
