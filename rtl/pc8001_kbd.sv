@@ -5,7 +5,8 @@
 //   00 pad 0-7 | 01 pad 8 9 * + = , . RETURN | 02 @ A-G | 03 H-O | 04 P-W | 05 X Y Z [ yen ] ^ -
 //   06 0-7 | 07 8 9 : ; , . / _ | 08 CLR UP RIGHT DEL GRPH KANA SHIFT CTRL | 09 STOP F1-F5 SPACE ESC
 // The machine has one key for up/down, one for right/left and one for DEL/INS: Down, Left and Insert press
-// SHIFT with it. F6-F8 and F10 are SHIFT + F1-F3, F5 (as on the machine). STOP: F9 or End or Pause.
+// SHIFT with it. F6-F8 and F10 are SHIFT + F1-F3, F5 (as on the machine). STOP: F9 or End (not Pause: Main sends
+// no release for it, and its 77h, Num Lock's code, is left pressed).
 // KANA is a lock key (Caps Lock or the JP kana key toggles it). GRPH: Alt. Page Up / Page Down: pad = and ,.
 //
 // kbd_us (OSD Keyboard = US): the symbols printed on a US keyboard. A symbol key whose JIS key or shift differs
@@ -123,7 +124,7 @@ always @(*) begin
 	9'h012, 9'h059: {r, b} = {4'd8, 3'd6};   // SHIFT
 	9'h014, 9'h114: {r, b} = {4'd8, 3'd7};   // CTRL
 	// 09
-	9'h001, 9'h169, 9'h077: {r, b} = {4'd9, 3'd0};   // F9, End, Pause: STOP
+	9'h001, 9'h169: {r, b} = {4'd9, 3'd0};   // F9, End: STOP
 	9'h005: {r, b} = {4'd9, 3'd1};
 	9'h006: {r, b} = {4'd9, 3'd2};
 	9'h004: {r, b} = {4'd9, 3'd3};

@@ -50,6 +50,7 @@ struct Options {
     int         model = 0;                // --mk2: 1 (OSD Model PC-8001mkII)
     bool        n_mode = false;           // --n-mode: the mkII's N-BASIC switch
     std::string mk2_dir = "../refs/emulators/mame_roms/pc8001mk2";   // --mk2-dir: n80_2.rom, kanji1.rom
+    int         main_gap = -1;    // --main-start N: boot*.rom loaded as Main does (all, the core running), N clocks apart
     std::string sr_dir = "../refs/emulators/mame_roms/pc8001mk2sr";  // --sr-dir: n80_2sr.rom, n80_3.rom, font80sr.rom, kanji1.rom
     bool        v2 = false;               // --v2: the SR's N80SR mode
     bool        kbd_us = false;
@@ -156,6 +157,7 @@ static bool parse_args(int argc, char **argv, Options &o)
         else if (a == "--pcg") o.pcg = true;
         else if (a == "--mk2") o.model = 1;
         else if (a == "--sr") o.model = 2;
+        else if (a == "--main-start") o.main_gap = atoi(next().c_str());
         else if (a == "--v2") o.v2 = true;
         else if (a == "--sr-dir") o.sr_dir = next();
         else if (a == "--n-mode") o.n_mode = true;
@@ -526,8 +528,10 @@ int Sim::run()
     top->reset = 1;
     top->ps2_key = 0;
     for (int i = 0; i < 16; i++) clock();
+    if (opt.main_gap >= 0) top->reset = 0;
     if (!load_rom()) return 2;
-    if (opt.model == 1) {
+    if (opt.main_gap >= 0) for (int i = 0; i < opt.main_gap; i++) clock();
+    if (opt.model == 1 || opt.main_gap >= 0) {
         // boot1.rom as Main loads it after boot.rom (ioctl index 40h): n80_2.rom (32 KB) + kanji1.rom (128 KB)
         std::vector<uint8_t> b, k;
         if (!read_file(opt.mk2_dir + "/n80_2.rom", b) || !read_file(opt.mk2_dir + "/kanji1.rom", k)) {
@@ -538,7 +542,8 @@ int Sim::run()
         ioctl_load(0, b, 0x40);
         if (!opt.quiet) fprintf(stderr, "[sim] boot1.rom: '%s' n80_2.rom + kanji1.rom\n", opt.mk2_dir.c_str());
     }
-    if (opt.model == 2) {
+    if (opt.main_gap >= 0) for (int i = 0; i < opt.main_gap; i++) clock();
+    if (opt.model == 2 || opt.main_gap >= 0) {
         // boot2.rom (ioctl index 80h): n80_2sr.rom at 0, n80_3.rom at 8000h, font80sr.rom at 12000h, kanji1.rom
         // at 20000h (tools/make_boot2_rom.sh)
         std::vector<uint8_t> a, n3, f, k;

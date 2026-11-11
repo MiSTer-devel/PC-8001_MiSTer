@@ -125,6 +125,7 @@ wire        ddr_busy = ddr_lfsr[0] & ddr_lfsr[3] | ddr_lat != 0;
 always @(posedge clk_sys) begin
    ddr_lfsr <= {ddr_lfsr[6:0], ddr_lfsr[7] ^ ddr_lfsr[5] ^ ddr_lfsr[4] ^ ddr_lfsr[3]};
    ddr_dout_ready <= 0;
+   if (ddr_rd && ddr_we) $display("ddr: rd and we together at %h", ddr_addr);
    if (ddr_lat != 0) begin
       ddr_lat <= ddr_lat - 1'd1;
       if (ddr_lat == 1) begin ddr_dout <= ddr_mem[ddr_ra]; ddr_dout_ready <= 1; end
