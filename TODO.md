@@ -13,7 +13,7 @@ Working list for PLAN.md. Done items move to the readme's Status section. (Start
 - [x] CSCP reference: prebuilt apps boot all three models headless (refs/emulators/cscp_roms, README).
 - [x] Quartus container build (quartus-core-apple.sh . , ~8 min): fits, 20% ALMs, 116 RAM blocks, all clocks
       meet timing (worst +0.557 ns, HDMI PLL; core clock +18.5 ns). Not tried on a MiSTer yet.
-- [ ] rom_store.sv / DDR3 ROM store: not needed until the mkII (boot.rom fits block RAM).
+- [x] rom_store.sv / DDR3 ROM store: not needed (all three boot ROMs fit block RAM; DDR3 is used for tapes).
 
 ## 1. PC-8001 boots to BASIC
 Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSCP, diffs the frames).
@@ -42,7 +42,7 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       CSCP; a BASIC loop is 3.4 % slower than CSCP, from CSCP's steal overlapping execution (HARDWARE_NOTES 11).
 - [x] Cursor and attribute blink: identical to CSCP over 121 frames (frame 0 now starts at reset).
 - [x] Quartus build: 21% ALMs, 120 RAM blocks, all clocks meet timing, no critical warnings.
-- [ ] First try on Mister 126.
+- [x] First try on Mister 126 (2026-11-05; since then the routine test machine).
 
 ## 2. Cassette
 - [x] 8251 (rtl/i8251.sv): mode, command, status, receive from the deck; transmit accepted and dropped.
@@ -147,6 +147,8 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
 - [ ] Host-injected typing (KVMS) in JP mode sometimes loses SHIFT on the second of two shifted keys: SHIFT and
       the key arrive together and BASIC reads SHIFT apart from the scan (as kbd_us's settle, not applied in JP).
 - [x] Tester zip under 20 MB: releases/PC8001_tester_20261105.zip (2.2 MB; rbf, the 3 boot ROMs, 11 tapes, 9 disks + 7 untested SR disks, README with how to start each). Not in git.
+- [x] Tester zip 20261111: releases/PC8001_tester_20261111.zip (2.4 MB; cb921bb rbf, Pac Land added in 20261105b/c,
+      README with the new OSD pages and fixes). Not in git.
 - [ ] Public repo.
 
 ## Open questions (from PLAN.md)
