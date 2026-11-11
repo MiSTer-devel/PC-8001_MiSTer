@@ -80,9 +80,16 @@ PC-8001mkIISR (phase 6): N80 / N / N80SR-BASIC modes, three 16 KB GVRAM planes w
 palette, the N80SR video modes, hiragana, the YM2203 (jt03) and its interrupt. Every compared screen is
 pixel-identical to CSCP (tools/cscp_suite.sh). Not yet tried on a MiSTer.
 
-OSD: Drive 1 / Drive 2 (.d88), Tape (.cmt/.t88), Load ROM (boot.rom), Expansion ROM (8 KB at 6000h, resets); Machine: Model
-PC-8001 / PC-8001mkII / PC-8001mkIISR, Mode N80 / N / N80SR (SR), Memory 32/16 KB, PCG-8100, Keyboard JP/US, Tape speed, Rewind; Video:
-aspect ratio, tape overlay. Model, mode, memory and PCG-8100 apply at reset.
+OSD (~/dev2/osd-standard.md): Drive 1 / Drive 2 (.d88, remembered), Tape (.cmt/.t88), Expansion ROM (8 KB at 6000h,
+resets), Load ROM (boot.rom); Memory 32/16 KB (the PC-8001 only); Machine: Model PC-8001 / PC-8001mkII /
+PC-8001mkIISR, Mode N80 / N / N80SR (mkII, SR), PCG-8100, Tape speed, Rewind; Video: Aspect ratio, Scale,
+Scandoubler Fx, Tape overlay; Input: Keyboard JP/US, Swap Alt/Win keys. Model, Mode, Memory and PCG-8100 apply at
+Apply and reset; the rest at once.
+
+Video (~/dev2/video-standard.md): 640 x 200 at 14.318 MHz dots, 15.7 kHz, in every model. Original aspect is the
+real shape, 48:35 (1.37:1): pixel aspect 3/7 (6.136 / 14.318 MHz), 640*3 : 200*7. No vertical crop (200 lines are
+already 5x at 1080p). On HDMI, leave Scandoubler Fx at None for the biggest integer picture (the scandoubled
+400 lines only fit 2x); a VGA monitor needs forced_scandoubler=1 in MiSTer.ini or a Scandoubler Fx.
 
 - boot.rom: `tools/make_boot_rom.sh refs/emulators/mame_roms/pc8001 rom/boot.rom` (= `cat n80v110.rom font.rom
   disk.rom`; leave disk.rom out for a machine without the disk unit).

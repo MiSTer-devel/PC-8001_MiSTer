@@ -62,7 +62,6 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
 - [x] Pac Land on hardware (Mister 126): side A to the title, round 1 loads and plays. Sides B-D not tried.
 - [ ] .n80 (memory image at 8000h, start at FF3Dh with SP from FF3Eh): needs a CPU start path.
 - [ ] Next-step hint (tape standard): read the name from the tape, "TYPE CLOAD"/"MON L".
-- [ ] CSAVE to a file (8251 transmit to a .cmt).
 - [ ] More titles: Galaxian, Slot Machine, Dig Dug (Year-Based .cmt); machine-code games started from MON.
 
 ## 3. Disk unit (PC-80S31)
@@ -138,10 +137,12 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
 - [x] PCG-8100 sound vs CSCP: 3994 Hz for count 1000 in both; a channel now as loud as the beep (CSCP 0.98).
 - [x] Start freeze fix (92eadc0) on Mister 126 (2026-11-11): Model saved as SR, then as mkII, 3 core loads each
       boot to BASIC; Pause no longer holds STOP (a GOTO loop runs on, F9 still breaks). Setup slack 0.596 ns.
-- [ ] House standards (~/dev2/video-standard.md, osd-standard.md): video_mixer + video_freak with CLK_VIDEO >= 4x
-      the pixel rate, Scale / Scandoubler Fx rows, Original aspect from the dot clock (not 4:3), aspect acting at
-      once (status, not cfg), gamma_bus, forced_scandoubler; OSD: Memory to the top page, Load ROM last in the
-      media block, P3 Input (Keyboard + Swap Alt/Win), hide Mode on the PC-8001, SC0/SC1 (disks remembered).
+- [x] House standards (~/dev2/video-standard.md, osd-standard.md), on Mister 126 2026-11-11: video_mixer +
+      video_freak on clk_vid 57.27 MHz (4x the dot clock; pixels handed over from clk_sys on ce_pix), gamma_bus,
+      forced_scandoubler; P2 Scale and Scandoubler Fx (all four Fx checked; V-Integer 5x = 1000 lines, 2x with
+      Fx), Original = 48:35 (640 x 200, PAR 3/7), aspect acting at once. OSD: Memory on the top page (hidden on
+      the mkII/SR), Load ROM last, P3 Input (Keyboard, Swap Alt/Win: checked), Mode hidden on the PC-8001,
+      SC0/SC1. Tape overlay checked through the mixer. Not checked: a VGA monitor, a 15 kHz CRT.
 - [ ] PCG-8100 sound on hardware.
 - [ ] Host-injected typing (KVMS) in JP mode sometimes loses SHIFT on the second of two shifted keys: SHIFT and
       the key arrive together and BASIC reads SHIFT apart from the scan (as kbd_us's settle, not applied in JP).
@@ -152,3 +153,7 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
 - Uncertain hardware (HARDWARE_NOTES.md section 10): uPD3301 retrace fields, 30h motor polarity, 31h bit 0,
   the dot clock, the cassette block format, the SR ports.
 - PC-8001A (US) font/ROM as an option?
+
+## Last
+- [ ] CSAVE to a file (8251 transmit to a .cmt). Low value on MiSTer: the tape slot is load-only, and
+      saving is covered by the disks (SC0/SC1, written back to the .d88).
