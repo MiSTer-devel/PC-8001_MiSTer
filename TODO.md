@@ -74,7 +74,8 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       DDR3) sharing DDR3 through a grant.
 - [x] N-BASIC system disk (PC-8034-2W) boots to "How many files": identical to CSCP. Block Kuzushi: boot
       the system disk, swap, MOUNT, RUN"BLOCK" plays.
-- [ ] Heiankyo Alien: find how it starts (track 0 is blank like Block Kuzushi's?).
+- [x] Heiankyo Alien: starts by itself from drive 1 (title, then RETURN plays): sim and CSCP match except the
+      aliens' positions (runs/cmp/heian_play, 2026-11-11).
 - [x] Second drive: Block Kuzushi from drive 2 (MOUNT 2, RUN"2:BLOCK") identical to CSCP at frames 6000 and
       9000 (block2); earlier frames differ while loading (seek/read timing).
 - [ ] Disk swap in drive 1 then MOUNT: the sim reads the new disk; CSCP (--swap-disk) says "Bad allocation
@@ -125,7 +126,11 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
       overflowed), so the PCG-8100's 8253 sound was ~7x too high until now.
 - [x] SR boot screens (srboot, srn, srv2) match CSCP.
 - [ ] MAME SR reference frames (fonthira.rom found 2026-11-03; MAME boots to Ver 1.6).
-- [ ] Software: F2 Grand Prix, Type Game, Nuts and Milk; a hiragana test; keyboard row 0Ah.
+- [x] SR game disks with a blank boot sector (Golf, BurgerTime, Dig Dug, Dragon Slayer, Eggy, Excite Bike,
+      Type Game; were "Untested" in the tester zip) are a BASIC loader + machine code: boot the N80SR-BASIC
+      system disk (Mode N80SR), swap the game into drive 1 at "How many files", run"NAME". All seven reach their
+      title/demo in the sim and CSCP; Golf checked on Mister 126 (2026-11-11). Names in the tester README.
+- [ ] Software: F2 Grand Prix; a hiragana test; keyboard row 0Ah.
 - [ ] YM2203 busy flag: jt12's lasts 32 FM clocks after a data write; CSCP has none (sropn masks it).
 
 ## 7. Release
@@ -148,7 +153,7 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
       the key arrive together and BASIC reads SHIFT apart from the scan (as kbd_us's settle, not applied in JP).
 - [x] Tester zip under 20 MB: releases/PC8001_tester_20261105.zip (2.2 MB; rbf, the 3 boot ROMs, 11 tapes, 9 disks + 7 untested SR disks, README with how to start each). Not in git.
 - [x] Tester zip 20261111: releases/PC8001_tester_20261111.zip (2.4 MB; cb921bb rbf, Pac Land added in 20261105b/c,
-      README with the new OSD pages and fixes). Not in git.
+      README with the new OSD pages and fixes; the 7 SR games out of Untested/ with how to start them). Not in git.
 - [ ] Public repo.
 
 ## Open questions (from PLAN.md)
