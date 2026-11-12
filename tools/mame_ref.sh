@@ -4,6 +4,7 @@
 #   tools/mame_ref.sh pc8001 runs/mame/boot 300
 #   tools/mame_ref.sh pc8001 runs/mame/width40 400,600 '300:WIDTH 40\n'
 # MACHINE: pc8001, pc8001mk2, pc8001mk2sr. FRAMES: comma-separated snapshot frames (MAME counts from 1).
+# MAME_SWAP=FRAME:FILE swaps the disk in drive 1 at FRAME (-flop1 FILE mounts the first, after --).
 # Snapshots land in OUTDIR/MACHINE/NNNN.png. ROMs from refs/emulators/mame_roms.
 set -e
 cd "$(dirname "$0")/.."

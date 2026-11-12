@@ -81,9 +81,12 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       aliens' positions (runs/cmp/heian_play, 2026-11-11).
 - [x] Second drive: Block Kuzushi from drive 2 (MOUNT 2, RUN"2:BLOCK") identical to CSCP at frames 6000 and
       9000 (block2); earlier frames differ while loading (seek/read timing).
-- [ ] Disk swap in drive 1 then MOUNT: the sim reads the new disk; CSCP (--swap-disk) says "Bad allocation
-      table" (runs/cmp/block_game). Find which is right (disk-change handling in the firmware / CSCP's swap).
-- [ ] Boot time with the unit and no disk (CSCP ~1100 frames): compare.
+- [x] Disk swap in drive 1 then MOUNT: the sim reads the new disk; CSCP (--swap-disk) says "Bad allocation
+      table" (runs/cmp/block_game). MAME (tools/mame_ref.sh with MAME_SWAP=2000:block disk, -ramsize 64K,
+      runs/mame/swap) does as the sim: mount, run"BLOCK" plays. CSCP's swap is the odd one out.
+- [x] Boot time with the unit and no disk (CSCP ~1100 frames): the sim and MAME (runs/mame/nodisk) both show the
+      banner by frame 150 (the uPD765 says not ready); CSCP's uPD765 answers an empty drive with missing address
+      mark (check_cond) and the unit retries. Same final screen (runs/cmp/nodisk_boot). Kept as MAME.
 
 ## 4. PC-8001 options
 - [x] PCG-8100 (OSD Machine > PCG-8100, sim --pcg), as CSCP: 1 KB RAM patterns for codes 80h-FFh (a copy
@@ -116,7 +119,8 @@ Spec: refs/docs/MK2_NOTES.md (CSCP's model). CSCP comparisons: MODEL=mk2 tools/c
 - [x] Interrupts and kanji reads identical to CSCP (mk2int, tools/mk2int_asm.py: 596 timer and 60 VRTC
       interrupts over 60 frames; kanji 0904h and 4321h).
 - [ ] mkII software: Monster House, Mario Bros. Special; N80-BASIC graphics commands (SCREEN, LINE).
-- [ ] Ver 1.3 boot screen (MAME) vs CSCP's Ver 1.0: which ROM.
+- [x] Ver 1.3 boot screen (MAME) vs CSCP's Ver 1.0: the same n80_2.rom (c12d34e4) holds both, N-BASIC Ver 1.3
+      and N-80 BASIC Ver 1.0; MAME starts in N mode, CSCP in N80 mode (OSD mkII mode picks it here).
 
 ## 6. PC-8001mkIISR (Model option)
 Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
@@ -128,7 +132,9 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
       CSCP (sropn). Fixed with it: the 3.9936 MHz clock enable (pit_ce) ran at ~clk_sys (an 18-bit constant
       overflowed), so the PCG-8100's 8253 sound was ~7x too high until now.
 - [x] SR boot screens (srboot, srn, srv2) match CSCP.
-- [ ] MAME SR reference frames (fonthira.rom found 2026-11-03; MAME boots to Ver 1.6).
+- [x] MAME SR reference frames (fonthira.rom found 2026-11-03; MAME boots to Ver 1.6): runs/mame/srboot, N mode,
+      PRINT 1+2 at 300: frame 600 identical to the sim (--sr --n-mode); at 300 MAME has not drawn the function
+      keys yet (its boot a few frames slower).
 - [x] SR game disks with a blank boot sector (Golf, BurgerTime, Dig Dug, Dragon Slayer, Eggy, Excite Bike; the
       yearbased set) were split out of the neokobe "PC-8001mkIISR Game Pack" disks 1-3, which boot to a menu
       (Mode N80SR; number + RETURN; pack 2 also in N80). 9 of the 12 menu entries checked: packs 1 and 3 all start
