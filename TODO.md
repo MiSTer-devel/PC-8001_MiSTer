@@ -126,11 +126,12 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
       overflowed), so the PCG-8100's 8253 sound was ~7x too high until now.
 - [x] SR boot screens (srboot, srn, srv2) match CSCP.
 - [ ] MAME SR reference frames (fonthira.rom found 2026-11-03; MAME boots to Ver 1.6).
-- [x] SR game disks with a blank boot sector (Golf, BurgerTime, Dig Dug, Dragon Slayer, Eggy, Excite Bike,
-      Type Game; were "Untested" in the tester zip) are a BASIC loader + machine code: boot the N80SR-BASIC
-      system disk (Mode N80SR), swap the game into drive 1 at "How many files", run"NAME". All seven reach their
-      title/demo in the sim and CSCP; Golf checked on Mister 126 (2026-11-11). Names in the tester README.
-- [ ] Software: F2 Grand Prix; a hiragana test; keyboard row 0Ah.
+- [x] SR game disks with a blank boot sector (Golf, BurgerTime, Dig Dug, Dragon Slayer, Eggy, Excite Bike; the
+      yearbased set) were split out of the neokobe "PC-8001mkIISR Game Pack" disks 1-3, which boot to a menu
+      (Mode N80SR; number + RETURN; pack 2 also in N80). 9 of the 12 menu entries checked: packs 1 and 3 all start
+      (sim; Excite Bike on Mister 126), pack 2's Golf (sim); pack 2's Dig Dug / Xevious / Nuts & Milk not tried; the split copies also start via the system disk (run"NAME"). Type Game is not
+      in a pack: system disk, swap at "How many files", run"game.nsr". The tester zip now has the packs.
+- [ ] Software: hiragana test; keyboard row 0Ah.
 - [ ] YM2203 busy flag: jt12's lasts 32 FM clocks after a data write; CSCP has none (sropn masks it).
 
 ## 7. Release
@@ -153,7 +154,7 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
       the key arrive together and BASIC reads SHIFT apart from the scan (as kbd_us's settle, not applied in JP).
 - [x] Tester zip under 20 MB: releases/PC8001_tester_20261105.zip (2.2 MB; rbf, the 3 boot ROMs, 11 tapes, 9 disks + 7 untested SR disks, README with how to start each). Not in git.
 - [x] Tester zip 20261111: releases/PC8001_tester_20261111.zip (2.4 MB; cb921bb rbf, Pac Land added in 20261105b/c,
-      README with the new OSD pages and fixes; the 7 SR games out of Untested/ with how to start them). Not in git.
+      README with the new OSD pages and fixes; the SR Game Pack disks 1-3 in place of Untested/). Not in git.
 - [ ] Public repo.
 
 ## Open questions (from PLAN.md)
