@@ -61,7 +61,10 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       Kumo Vader play byte for byte. CSCP: side A reaches the title ("PUSH RETURN KEY TO LOAD START") at ~25000.
 - [x] Pac Land on hardware (Mister 126): side A to the title, round 1 loads and plays. Sides B-D not tried.
 - [ ] .n80 (memory image at 8000h, start at FF3Dh with SP from FF3Eh): needs a CPU start path.
-- [ ] Next-step hint (tape standard): read the name from the tape, "TYPE CLOAD"/"MON L".
+- [x] Next-step hint (tape standard): read the name from the tape, "TYPE CLOAD"/"MON L" (rtl/tape_hint.sv,
+      6c7e556). TYPE CLOAD"name" / TYPE RUN for CSAVE tapes, TYPE MON L for monitor tapes, nothing otherwise.
+      Model: 107 BASIC, 32 machine code, 6 none of 145 tapes; sim sweep of 14 (typing the hint loads each).
+      Mister 126 (build of 6c7e556, slack 0.225 ns): River Patrol CLOAD"river" -> TYPE RUN -> gone once running.
 - [ ] More titles: Galaxian, Slot Machine, Dig Dug (Year-Based .cmt); machine-code games started from MON.
 
 ## 3. Disk unit (PC-80S31)
@@ -155,6 +158,8 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
 - [x] Tester zip under 20 MB: releases/PC8001_tester_20261105.zip (2.2 MB; rbf, the 3 boot ROMs, 11 tapes, 9 disks + 7 untested SR disks, README with how to start each). Not in git.
 - [x] Tester zip 20261111: releases/PC8001_tester_20261111.zip (2.4 MB; cb921bb rbf, Pac Land added in 20261105b/c,
       README with the new OSD pages and fixes; the SR Game Pack disks 1-3 in place of Untested/). Not in git.
+- [x] sys/ updated to Template_MiSTer e901a9f (2026-11-03; 4b14683): only hps_io.sv changed. Built, timing met,
+      boot/OSD/beep checked on Mister 126 (~/dev2/sys-standard.md).
 - [ ] Public repo.
 
 ## Open questions (from PLAN.md)
