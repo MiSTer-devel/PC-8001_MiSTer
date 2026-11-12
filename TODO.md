@@ -72,8 +72,9 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       others need MON L first, Neo Kobe's "{cload X mon L}"; the tape does not say which). Mister 126 (slack
       0.255 ns): Galaxian (1980) shows CLOAD"GXB", then nothing; River still shows RUN (sim).
 - [ ] More titles: Galaxian, Slot Machine, Dig Dug (Year-Based .cmt); machine-code games started from MON.
-      Galaxian (1980)[a1] (cload"GXB", mon, L, Ctrl+B, run): the screen goes all black after run, the same in
-      the sim and on Mister 126; not yet compared with CSCP.
+      Galaxian (1980)[a1] (cload"GXB", mon, L, Ctrl+B, run, then RETURN at a black screen: line 450 waits on
+      INPUT$(1)) plays in the sim as in CSCP (runs/cmp/galaxian_c4); the black screen also on Mister 126. While
+      it waits, CSCP shows an 8x8 block at cell (1,1) (cursor?) and the sim nothing: not yet explained.
 
 ## 3. Disk unit (PC-80S31)
 - [x] rtl/pc80s31.sv (the PC-6001 core's pc6031.sv: Z80 + disk.rom, 16 KB, uPD765, two cross-wired 8255s) at
