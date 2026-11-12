@@ -297,8 +297,29 @@ always @(posedge clk_sys) begin
 	end
 end
 
+// Next step while the deck is stopped (tape standard rules 25-28): read from the tape as it downloads
+wire         hint_show;
+wire [175:0] hint_text;
+
+tape_hint tape_hint
+(
+	.clk(clk_sys),
+	.ioctl_download(ioctl_download & (ioctl_addr[26:25] == 0)),
+	.ioctl_index(ioctl_index),
+	.ioctl_wr(ioctl_wr),
+	.ioctl_addr(ioctl_addr[24:0]),
+	.ioctl_dout(ioctl_dout),
+	.loaded(tape_loaded),
+	.motor(tape_motor),
+	.rewind(status[3]),
+	.position(tape_position),
+	.ps2_key(ps2_key),
+	.show(hint_show),
+	.text(hint_text)
+);
+
 // Tape status bar while the deck plays (tape standard): bytes at about 55 a second (600 baud, 11 bits)
-wire [43:0] tape_status_word;
+wire [218:0] tape_status_word;
 wire        tape_status_req, tape_status_ack;
 
 tape_status tape_status
@@ -310,7 +331,8 @@ tape_status tape_status
 	.position({12'd0, tape_position}),
 	.length({12'd0, tape_length}),
 	.hz(18'd55),
-	.hint(2'd0),
+	.hint_show(hint_show),
+	.hint_text(hint_text),
 	.status(tape_status_word),
 	.req(tape_status_req),
 	.ack(tape_status_ack)
@@ -326,6 +348,10 @@ tape_overlay #(.FACTOR(4'(TURBO))) tape_overlay
 	.status(tape_status_word),
 	.req(tape_status_req),
 	.ack(tape_status_ack),
+	// the hint's font: font.rom's characters 00h-7Fh (boot.rom 6000h-63FFh) as boot.rom loads
+	.font_we(ioctl_download & (ioctl_index == 8'd0) & ioctl_wr & (ioctl_addr[26:10] == 17'h18)),
+	.font_a(ioctl_addr[9:0]),
+	.font_d(ioctl_dout),
 	.rgb_in({R, G, B}),
 	.rgb_out(rgb_ov)
 );

@@ -11,6 +11,7 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/i8257.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/i8251.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pc8001_cmt.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/tape_overlay.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/tape_hint.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pc80s31.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/upd765_lite.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/d88_media.sv

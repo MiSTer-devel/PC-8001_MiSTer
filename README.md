@@ -91,6 +91,15 @@ real shape, 48:35 (1.37:1): pixel aspect 3/7 (6.136 / 14.318 MHz), 640*3 : 200*7
 already 5x at 1080p). On HDMI, leave Scandoubler Fx at None for the biggest integer picture (the scandoubled
 400 lines only fit 2x); a VGA monitor needs forced_scandoubler=1 in MiSTer.ini or a Scandoubler Fx.
 
+Tape overlay (~/dev2/tape-standard.md): while the deck plays, `TAPE ▶ m:ss/ m:ss x5` and a progress bar; while it
+is stopped, what to type next, read from the tape itself as it loads (rtl/tape_hint.sv): a BASIC tape (CSAVE
+header) shows `TYPE CLOAD"name" ↵` at its start and `TYPE RUN ↵` once the program has loaded, until Return; a
+machine-code tape (monitor W records) shows `TYPE MON ↵ L ↵`. The start address after L is not on the tape, so
+it is not shown (the game's instructions give it). Nothing is shown once the program has been started, for a tape
+whose first block is in neither format (Pac Land's sides B-D), or with Tape overlay Off. The hint is drawn with
+the machine's own font, so names keep their case (`cload"river"`). Model and Mode are not hinted (Pac Land wants
+the SR in N80SR mode: the tape gives no sign of it).
+
 - boot.rom: `tools/make_boot_rom.sh refs/emulators/mame_roms/pc8001 rom/boot.rom` (= `cat n80v110.rom font.rom
   disk.rom`; leave disk.rom out for a machine without the disk unit).
 - boot1.rom (the mkII, beside boot.rom): `tools/make_boot1_rom.sh refs/emulators/mame_roms/pc8001mk2 rom/boot1.rom`

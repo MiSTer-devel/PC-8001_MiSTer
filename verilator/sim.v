@@ -14,6 +14,7 @@ module top
    input         pcg_on,
    input  [64:0] rtc,
    input         kbd_us,
+   input         overlay,      // --overlay: the tape overlay (status bar, next-step hint) as PC8001.sv draws it
 
    output [7:0]  VGA_R /*verilator public_flat*/,
    output [7:0]  VGA_G /*verilator public_flat*/,
@@ -71,6 +72,7 @@ module top
 
 
 wire [15:0] audio;
+wire  [7:0] m_R, m_G, m_B;
 assign AUDIO_L = audio;
 assign AUDIO_R = audio;
 
@@ -100,7 +102,7 @@ pc8001 pc8001
    .ddr_dout_ready(ddr_dout_ready), .ddr_rd(ddr_rd), .ddr_din(ddr_din), .ddr_be(ddr_be), .ddr_we(ddr_we),
    .disk_unit(), .disk_ready(disk_ready), .disk_too_big(), .disk_motor(disk_motor),
    .ce_pix(ce_pix),
-   .R(VGA_R), .G(VGA_G), .B(VGA_B),
+   .R(m_R), .G(m_G), .B(m_B),
    .HSync(VGA_HS), .VSync(VGA_VS),
    .HBlank(VGA_HB), .VBlank(VGA_VB),
    .audio(audio),
@@ -108,6 +110,34 @@ pc8001 pc8001
    .dbg_io_wr(dbg_io_wr), .dbg_io_rd(dbg_io_rd), .dbg_io_port(dbg_io_port), .dbg_io_data(dbg_io_data),
    .prn_wr(prn_wr), .prn_data(prn_data)
 );
+
+// The tape overlay, as PC8001.sv (tape_hint, tape_status, tape_overlay; 5x turbo)
+wire         hint_show;
+wire [175:0] hint_text;
+wire [218:0] ts_word;
+wire         ts_req, ts_ack;
+wire  [23:0] rgb_ov;
+tape_hint tape_hint
+(
+   .clk(clk_sys), .ioctl_download(ioctl_download), .ioctl_index(ioctl_index), .ioctl_wr(ioctl_wr),
+   .ioctl_addr(ioctl_addr), .ioctl_dout(ioctl_dout), .loaded(tape_loaded), .motor(tape_motor),
+   .rewind(tape_rewind), .position(tape_position), .ps2_key(ps2_key), .show(hint_show), .text(hint_text)
+);
+tape_status tape_status
+(
+   .clk(clk_sys), .loaded(tape_loaded), .playing(tape_motor), .fast(tape_turbo_on),
+   .position({12'd0, tape_position}), .length({12'd0, tape_length}), .hz(18'd55),
+   .hint_show(hint_show), .hint_text(hint_text), .status(ts_word), .req(ts_req), .ack(ts_ack)
+);
+tape_overlay #(.FACTOR(4'd5)) tape_overlay
+(
+   .clk(clk_sys), .ce_pix(ce_pix), .hblank(VGA_HB), .vblank(VGA_VB), .enable(1'b1),
+   .status(ts_word), .req(ts_req), .ack(ts_ack),
+   .font_we(ioctl_download & (ioctl_index == 8'd0) & ioctl_wr & (ioctl_addr[24:10] == 15'h18)),
+   .font_a(ioctl_addr[9:0]), .font_d(ioctl_dout),
+   .rgb_in({m_R, m_G, m_B}), .rgb_out(rgb_ov)
+);
+assign {VGA_R, VGA_G, VGA_B} = overlay ? rgb_ov : {m_R, m_G, m_B};
 
 // DDR3 (sys/ddr_svc's side of emu): 2.5 MB from the disk images' base (512 KB each, then the ROM store), one access at a time, busy now and then and
 // reads coming back some clocks later, as the real one (from the PC-6001 core's sim)
