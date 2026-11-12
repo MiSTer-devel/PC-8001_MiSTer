@@ -28,8 +28,11 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       Left, Insert with SHIFT.
 - [x] Identical to CSCP pixel for pixel: boot (40x20), PRINT, a program with LIST/RUN, WIDTH 80,25 / 80,20 /
       40,25, COLOR in colour mode, PSET semigraphics, CHR$(0-255) in 40 and 80 columns.
-- [ ] Not compared yet: blinking (attribute and cursor phase), reverse display (start display bit 0), DMA
-      underrun, non-transparent mode, a running game's timing (BUSREQ per row vs CSCP's per line).
+- [x] Compared: attribute blink (cscp_suite blink, 9 frames); reverse display (out &h51,&h21, runs/cmp/rvv:
+      identical; as in CSCP it only reverses where the attribute mode has no reverse bit of its own, so no
+      change under BASIC's transparent attributes).
+- [ ] Not compared yet: cursor blink phase, DMA underrun, non-transparent mode, a running game's timing
+      (BUSREQ per row vs CSCP's per line).
 - [x] US keyboard layout option (OSD Keyboard = US, sim --kbd-us): identical to CSCP (kbdus). A symbol whose
       SHIFT differs from the held SHIFT waits 50 ms for BASIC to see the new SHIFT (else US ^ @ : were lost).
 - [ ] Disk-unit check: with FCh-FFh reading FFh the ROM waits ~2.7 s before BASIC (CSCP, with an 8255
@@ -118,7 +121,9 @@ Spec: refs/docs/MK2_NOTES.md (CSCP's model). CSCP comparisons: MODEL=mk2 tools/c
       E8h/E9h from DDR3 (the CPU waits for it).
 - [x] Interrupts and kanji reads identical to CSCP (mk2int, tools/mk2int_asm.py: 596 timer and 60 VRTC
       interrupts over 60 frames; kanji 0904h and 4321h).
-- [ ] mkII software: Monster House, Mario Bros. Special; N80-BASIC graphics commands (SCREEN, LINE).
+- [x] N80-BASIC graphics commands (runs/cmp/mk2cmd: CMD SCREEN 2, CMD LINE ,B, CMD CIRCLE, CMD PAINT, CMD LINE):
+      frame 3500 identical to CSCP; at 2500 the sim's PAINT is further along (it runs a little faster there).
+- [ ] mkII software: Monster House, Mario Bros. Special.
 - [x] Ver 1.3 boot screen (MAME) vs CSCP's Ver 1.0: the same n80_2.rom (c12d34e4) holds both, N-BASIC Ver 1.3
       and N-80 BASIC Ver 1.0; MAME starts in N mode, CSCP in N80 mode (OSD mkII mode picks it here).
 

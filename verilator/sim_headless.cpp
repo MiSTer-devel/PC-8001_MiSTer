@@ -88,7 +88,7 @@ static void usage()
 "  --overlay              draw the tape overlay (status bar, next-step hint) as the core does\n"
 "  --ext-rom FILE         expansion ROM at 6000h (OSD Expansion ROM)\n"
 "  --printer FILE         write the bytes sent to the printer to FILE\n"
-"  --type FRAME:TEXT      type TEXT from FRAME; \\n or {RETURN}, {WAITn} ...\n"
+"  --type FRAME:TEXT      type TEXT from FRAME; \\n or {RETURN}, {WAITn}, {CTRL+B} ...\n"
 "  --type-rate P:R        frames per key press:release (default 4:4)\n"
 "  --reset-at F           reset before frame F\n"
 "  --screenshot N         PNG of frame N (repeatable); --dump-every K: every Kth frame\n"
@@ -475,6 +475,7 @@ void Sim::schedule_text(uint32_t f, const std::string &s)
 {
     for (size_t i = 0; i < s.size(); i++) {
         Ps2Key k;
+        bool ctrl = false;
         bool ok = false;
         if (s[i] == '\\' && i + 1 < s.size()) {
             char c = s[++i];
@@ -485,7 +486,12 @@ void Sim::schedule_text(uint32_t f, const std::string &s)
             std::string name = s.substr(i + 1, e - i - 1);
             i = e;
             if (name.rfind("WAIT", 0) == 0) { f += parse_num(name.substr(4)); continue; }
-            ok = ps2_from_name(name, k);
+            if (name.rfind("CTRL+", 0) == 0 && name.size() == 6) {
+                // {CTRL+B}: CTRL held a frame before the key until a frame after (the monitor's Ctrl+B)
+                ok = ps2_from_ascii((char)tolower(name[5]), k);
+                if (ok) ctrl = true;
+            }
+            else ok = ps2_from_name(name, k);
             if (!ok) fprintf(stderr, "--type: unknown key {%s}\n", name.c_str());
         } else {
             ok = opt.kbd_us ? ps2_from_ascii_us(s[i], k) : ps2_from_ascii(s[i], k);
@@ -498,6 +504,10 @@ void Sim::schedule_text(uint32_t f, const std::string &s)
         ps2_schedule.insert({f, {k.code, k.extended, true}});
         ps2_schedule.insert({f + opt.type_press, {k.code, k.extended, false}});
         if (k.shift) ps2_schedule.insert({f + opt.type_press + 1, {PS2_LSHIFT, false, false}});
+        if (ctrl) {
+            ps2_schedule.insert({f ? f - 1 : 0, {PS2_LCTRL, false, true}});
+            ps2_schedule.insert({f + opt.type_press + 1, {PS2_LCTRL, false, false}});
+        }
         f += opt.type_press + opt.type_release;
     }
 }

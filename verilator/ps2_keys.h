@@ -13,6 +13,7 @@ struct Ps2Key {
 };
 
 static const uint8_t PS2_LSHIFT = 0x12;
+static const uint8_t PS2_LCTRL = 0x14;
 
 // Printable ASCII -> key, for the PC-6001's JIS layout as rtl/pc6001_sub.sv maps US key positions to it
 // (letters: unshifted lower case, as PC6001VX's key table; capitals with shift). Returns false if there is no

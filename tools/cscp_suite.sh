@@ -27,6 +27,8 @@ AT=1500 DISK="$D" DISK2="$Y/1979/PC-8001/Block Kuzushi (1979)(ASCII).d88" TEXT2=
 MODEL=mk2 $T mk2boot  300,600                                            || rc=1
 MODEL=mk2 NMODE=1 $T mk2n 300,600                                        || rc=1
 MODEL=mk2 $T mk2print 900  'print 1+1\nfiles\n'                           || rc=1
+# N80-BASIC graphics statements (the final picture; mid-PAINT frames differ in speed)
+MODEL=mk2 $T mk2cmd 3500 '10 cmd screen 2,0,1:cmd cls 3\n20 cmd line(0,0)-(319,199),2,b\n30 cmd circle(160,100),60,3\n40 cmd paint(160,100),1,3\n50 cmd line(10,10)-(300,190),3\n60 goto 60\nrun\n' -- --type-rate 6:6 || rc=1
 # graphics: machine code (DI) fills GVRAM with its address's low byte, sets 31h and spins: 09h 640 attribute,
 # 1Dh 320x200 4 colours + blue, 4Dh mono on red, 29h attribute on blue
 for v in 09 1d 4d 29; do
