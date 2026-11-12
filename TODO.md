@@ -68,7 +68,12 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       6c7e556). TYPE CLOAD"name" / TYPE RUN for CSAVE tapes, TYPE MON L for monitor tapes, nothing otherwise.
       Model: 107 BASIC, 32 machine code, 6 none of 145 tapes; sim sweep of 14 (typing the hint loads each).
       Mister 126 (build of 6c7e556, slack 0.225 ns): River Patrol CLOAD"river" -> TYPE RUN -> gone once running.
+      219f9ab: no RUN when a machine-code block follows the BASIC program (69 of 107: some load it themselves,
+      others need MON L first, Neo Kobe's "{cload X mon L}"; the tape does not say which). Mister 126 (slack
+      0.255 ns): Galaxian (1980) shows CLOAD"GXB", then nothing; River still shows RUN (sim).
 - [ ] More titles: Galaxian, Slot Machine, Dig Dug (Year-Based .cmt); machine-code games started from MON.
+      Galaxian (1980)[a1] (cload"GXB", mon, L, Ctrl+B, run): the screen goes all black after run, the same in
+      the sim and on Mister 126; not yet compared with CSCP.
 
 ## 3. Disk unit (PC-80S31)
 - [x] rtl/pc80s31.sv (the PC-6001 core's pc6031.sv: Z80 + disk.rom, 16 KB, uPD765, two cross-wired 8255s) at
