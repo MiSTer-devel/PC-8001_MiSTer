@@ -123,7 +123,10 @@ Spec: refs/docs/MK2_NOTES.md (CSCP's model). CSCP comparisons: MODEL=mk2 tools/c
       interrupts over 60 frames; kanji 0904h and 4321h).
 - [x] N80-BASIC graphics commands (runs/cmp/mk2cmd: CMD SCREEN 2, CMD LINE ,B, CMD CIRCLE, CMD PAINT, CMD LINE):
       frame 3500 identical to CSCP; at 2500 the sim's PAINT is further along (it runs a little faster there).
-- [ ] mkII software: Monster House, Mario Bros. Special.
+- [x] mkII software (sim, 5x tape): Mario Bros. Special (cload"*", run; its loader reads the rest, ~46 KB) has its
+      title at frame 10500, identical to CSCP's (frame 16000, 200 bytes/s), and plays after SPACE (runs/mk2sw/mario2).
+      Monster House (mon, L, Ctrl+B, cload"NO1", run; it loads NO2 itself; run) reaches its title
+      (runs/mk2sw/monster2). The tape hint gives only its first step (MON L): the rest is not on the tape.
 - [x] Ver 1.3 boot screen (MAME) vs CSCP's Ver 1.0: the same n80_2.rom (c12d34e4) holds both, N-BASIC Ver 1.3
       and N-80 BASIC Ver 1.0; MAME starts in N mode, CSCP in N80 mode (OSD mkII mode picks it here).
 
