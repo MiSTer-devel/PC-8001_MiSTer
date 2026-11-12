@@ -93,7 +93,8 @@ already 5x at 1080p). On HDMI, leave Scandoubler Fx at None for the biggest inte
 
 Tape overlay (~/dev2/tape-standard.md): while the deck plays, `TAPE ▶ m:ss/ m:ss x5` and a progress bar; while it
 is stopped, what to type next, read from the tape itself as it loads (rtl/tape_hint.sv): a BASIC tape (CSAVE
-header) shows `TYPE CLOAD"name" ↵` at its start and `TYPE RUN ↵` once the program has loaded, until Return; a
+header) shows `TYPE CLOAD"name" ↵` at its start and `TYPE RUN ↵` once the program has loaded, until Return (not when a
+machine-code block follows it: some such programs load it themselves, others need MON and L first); a
 machine-code tape (monitor W records) shows `TYPE MON ↵ L ↵`. The start address after L is not on the tape, so
 it is not shown (the game's instructions give it). Nothing is shown once the program has been started, for a tape
 whose first block is in neither format (Pac Land's sides B-D), or with Tape overlay Off. The hint is drawn with

@@ -13,6 +13,9 @@
 //     Point, Circuit), so it is not shown (rule 25). Nor is a second L for a second block: the monitor stops
 //     the motor well after a block's end (Moon Alien at 5x: 55 bytes into the next block's header), so the
 //     next L would not find that header.
+// RUN is not shown when a machine-code block follows the BASIC program: some such programs load it themselves
+// (Kumo Vader, Qix), others need MON, L, Ctrl+B first (Galaxian 1980, Marine Belt, Deep Scan: Neo Kobe's
+// "{cload X mon L}"), and nothing on the tape tells them apart (69 of the 107 BASIC tapes).
 // A first header that is neither (Pac Land's sides B-D, its own loader's blocks) gives no hint at all. RUN
 // shows only while the tape sits past the BASIC program's end and no more than 64 bytes into the next file
 // (CLOAD stops the motor a few bytes after the end: Kumo Vader 8, River Patrol 8, at 5x; rule 26), and is
@@ -97,6 +100,7 @@ reg        second = 0;          // looking for the second file
 reg  [1:0] k1 = K_NONE;
 reg [19:0] f1_start = 0, f1_end = 0, f2_start = 0;
 reg        f1_ok = 0;           // the first file decoded to its end
+reg        f2_mc = 0;           // the second file is a machine-code block
 reg  [7:0] name [0:5];
 reg  [3:0] d3 = 0;              // D3h run (saturates at 10)
 reg [19:0] d3_at = 0;
@@ -121,13 +125,13 @@ wire       printable = (pd >= 8'h20 && pd < 8'h7F) || pd == 8'h00;
 task found_mon;
 	// the 3Ah that confirmed the header is the first record's colon
 	if (!second) begin k1 <= K_MON; f1_start <= m_at; rp <= 1; s <= S_REC; end
-	else begin f2_start <= m_at; s <= S_DONE; end
+	else begin f2_start <= m_at; f2_mc <= 1; s <= S_DONE; end
 endtask
 
 always @(posedge clk) begin
 	if (~tape_dl & old_dl) fin <= 1;
 	if (tape_dl & ~old_dl) begin
-		s <= S_FIND; second <= 0; k1 <= K_NONE; f1_ok <= 0; d3 <= 0; mk <= 0; fin <= 0;
+		s <= S_FIND; second <= 0; k1 <= K_NONE; f1_ok <= 0; f2_mc <= 0; d3 <= 0; mk <= 0; fin <= 0;
 	end
 	else if (fin & ~pv) begin
 		fin <= 0;
@@ -210,7 +214,7 @@ wire       ret = (ps2_key[10] != old_tog) & ps2_key[9] & (ps2_key[7:0] == 8'h5A)
 wire       at_start = fresh || position <= f1_start;
 wire       after1 = !fresh && f1_ok && position > f1_end && position <= f2_start + 20'd64;
 wire       step1 = at_start && k1 != K_NONE;
-wire       step2 = after1 && !done && k1 == K_BASIC;
+wire       step2 = after1 && !done && k1 == K_BASIC && !f2_mc;
 
 always @(posedge clk) begin
 	old_tog <= ps2_key[10];
