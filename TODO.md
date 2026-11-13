@@ -201,6 +201,8 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
       Caps Lock and the JP kana key), left Alt stays GRPH, in both keyboard modes; Swap Alt/Win moves both to the
       Win keys. Sim: abc{RALT}abc{RALT}abc identical to the same with {CAPS} (abcチコソabc).
       Mister 192 (e940a28, slack 0.256 ns): the same abcチコソabc via KVMS ralt; left Alt+A / Alt+S still GRPH.
+- [x] Tester zip 20261113: releases/PC8001_tester_20261113.zip (2.7 MB; e940a28 rbf: right Alt = KANA, Memory
+      Image .n80 with 9 images, the tape hint, sys/ update; tapes + Galaxian 1980, Slot Machine, Dig Dug). Not in git.
 - [ ] Public repo.
 
 ## Open questions (from PLAN.md)
