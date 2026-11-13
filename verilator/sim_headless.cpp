@@ -63,6 +63,8 @@ struct Options {
     std::string disk_out;                 // --disk-out FILE: the image as the drive left it
     std::multimap<uint32_t, std::pair<int, std::string>> swaps; // --swap-disk[2] FRAME:FILE: mount before FRAME
     std::string tape_file;                // --tape FILE: .cmt / .t88 through ioctl index 1 (.t88: 41h)
+    uint32_t    n80_frame = 0;            // --n80 FRAME:FILE: a .n80 memory image (OSD F3, ioctl index 3) at FRAME
+    std::string n80_file;
     bool        tape_turbo = false;       // --tape-turbo: OSD Tape speed 5x
     std::vector<std::string> after_motor; // --after-motor TEXT: typed 20 frames after each motor stop
     uint32_t    tape_end_stop = 0;        // --stop-after-motor N: end when the motor has stayed off N frames
@@ -104,6 +106,7 @@ static void usage()
 "  --disk2 FILE           mount a .d88 in drive 2 (OSD S1)\n"
 "  --swap-disk F:FILE     mount FILE in drive 1 before frame F (repeatable); --swap-disk2 for drive 2\n"
 "  --tape FILE            load a .cmt / .t88 tape image (OSD Tape); --tape-turbo: OSD Tape speed 5x\n"
+"  --n80 FRAME:FILE       load a .n80 memory image at FRAME (OSD Memory Image): it starts at once\n"
 "  --after-motor TEXT     type TEXT 20 frames after the tape motor stops (repeatable: one per stop, in order)\n"
 "  --stop-after-motor N   stop once the motor has stopped (after every --after-motor text) and stayed off\n"
 "                         N frames; prints a TAPE line\n"
@@ -172,6 +175,12 @@ static bool parse_args(int argc, char **argv, Options &o)
         else if (a == "--reset-at") o.resets.insert(parse_num(next()));
         else if (a == "--wav") o.wav_file = next();
         else if (a == "--tape") o.tape_file = next();
+        else if (a == "--n80") {
+            std::string v = next();
+            size_t c = v.find(':');
+            if (c == std::string::npos) { fprintf(stderr, "--n80 FRAME:FILE\n"); exit(2); }
+            o.n80_frame = parse_num(v.substr(0, c)); o.n80_file = v.substr(c + 1);
+        }
         else if (a == "--disk") { o.disk_file[0] = next(); o.disk_unit = true; }
         else if (a == "--disk2") { o.disk_file[1] = next(); o.disk_unit = true; }
         else if (a == "--disk-unit") o.disk_unit = true;
@@ -261,6 +270,8 @@ void Sim::ioctl_load(uint32_t base, const std::vector<uint8_t> &data, int index)
 {
     top->ioctl_index = index;
     top->ioctl_download = 1;
+    clock();
+    while (top->ioctl_wait) clock();      // Main sends nothing while the core waits
     for (size_t i = 0; i < data.size(); i++) {
         top->ioctl_addr = base + (uint32_t)i;
         top->ioctl_dout = data[i];
@@ -604,7 +615,16 @@ int Sim::run()
     auto range = ps2_schedule.equal_range(frame);
     for (auto it = range.first; it != range.second; ++it) ps2_queue.push_back(it->second);
 
-    while (frame <= opt.stop_frame && !done && !Verilated::gotFinish()) clock();
+    std::vector<uint8_t> n80;
+    if (!opt.n80_file.empty() && !read_file(opt.n80_file, n80)) { fprintf(stderr, "cannot read %s\n", opt.n80_file.c_str()); return 2; }
+    while (frame <= opt.stop_frame && !done && !Verilated::gotFinish()) {
+        clock();
+        if (!n80.empty() && frame >= opt.n80_frame) {
+            ioctl_load(0, n80, 3);
+            if (!opt.quiet) fprintf(stderr, "[sim] memory image: '%s', %zu bytes at frame %u\n", opt.n80_file.c_str(), n80.size(), frame);
+            n80.clear();
+        }
+    }
     if (opt.tape_end_stop) {
         char name[1024];
         snprintf(name, sizeof(name), "%s/last.png", opt.out_dir.c_str());

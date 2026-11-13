@@ -63,7 +63,13 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       end of loading, the image cut at 64 KB. verilator/tb_cmt: every Pac Land side (both dumps), River Patrol and
       Kumo Vader play byte for byte. CSCP: side A reaches the title ("PUSH RETURN KEY TO LOAD START") at ~25000.
 - [x] Pac Land on hardware (Mister 126): side A to the title, round 1 loads and plays. Sides B-D not tried.
-- [ ] .n80 (memory image at 8000h, start at FF3Dh with SP from FF3Eh): needs a CPU start path.
+- [x] .n80 (memory image at 8000h, start at FF3Dh with SP from FF3Eh): OSD Memory Image (F3), sim --n80 FRAME:FILE.
+      The Z80 is held in an opcode fetch's wait while the image is written, then fed LD SP,nn / JP FF3Dh (no
+      reset). Whole file loaded: 40 of 64 are 7F64h bytes with a register-restore stub at FF40h (CSCP loads to
+      FF3Fh only, and its headless --tape rejects .n80, so no CSCP compare). Sim: Scramble, New Rally-X start;
+      Double Rope, Galaxy Wars (RUN), Heavy Bomber (RETURN) reach their titles; Crazy Climber and Missile
+      Commander (saved under BASIC 1.2/1.4) give Illegal function call on the PC-8001's 1.1, start on the mkII in
+      Mode N. Not yet on hardware.
 - [x] Next-step hint (tape standard): read the name from the tape, "TYPE CLOAD"/"MON L" (rtl/tape_hint.sv,
       6c7e556). TYPE CLOAD"name" / TYPE RUN for CSAVE tapes, TYPE MON L for monitor tapes, nothing otherwise.
       Model: 107 BASIC, 32 machine code, 6 none of 145 tapes; sim sweep of 14 (typing the hint loads each).
@@ -74,7 +80,8 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
 - [ ] More titles: Galaxian, Slot Machine, Dig Dug (Year-Based .cmt); machine-code games started from MON.
       Galaxian (1980)[a1] (cload"GXB", mon, L, Ctrl+B, run, then RETURN at a black screen: line 450 waits on
       INPUT$(1)) plays in the sim as in CSCP (runs/cmp/galaxian_c4); the black screen also on Mister 126. While
-      it waits, CSCP shows an 8x8 block at cell (1,1) (cursor?) and the sim nothing: not yet explained.
+      it waits, both blink an 8x8 block (the cursor) at cell (1,1), 48 frames a cycle; the frames compared had
+      caught them in opposite phases (the open cursor-blink-phase item, section 1).
 
 ## 3. Disk unit (PC-80S31)
 - [x] rtl/pc80s31.sv (the PC-6001 core's pc6031.sv: Z80 + disk.rom, 16 KB, uPD765, two cross-wired 8255s) at
@@ -155,7 +162,8 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
       (sim; Excite Bike on Mister 126), pack 2's Golf (sim); pack 2's Dig Dug / Xevious / Nuts & Milk not tried; the split copies also start via the system disk (run"NAME"). Type Game is not
       in a pack: system disk, swap at "How many files", run"game.nsr". The tester zip now has the packs.
 - [ ] Software: hiragana test; keyboard row 0Ah.
-- [ ] YM2203 busy flag: jt12's lasts 32 FM clocks after a data write; CSCP has none (sropn masks it).
+- [x] YM2203 busy flag: jt12's lasts 32 FM clocks after a data write; CSCP has none (sropn masks it). Kept: the
+      real chip has one; the SR games tried (Game Packs 1-3, Nuts & Milk) run with it.
 
 ## 7. Release
 - [x] Hardware test on Mister 126 (2026-11-05): PC-8001 boot and BASIC, River Patrol from tape, the SR in N80SR

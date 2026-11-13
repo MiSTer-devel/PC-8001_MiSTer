@@ -135,7 +135,7 @@ wire ext_dl = ioctl_download & (ioctl_index[5:0] == 6'd2);   // OSD Expansion RO
 reg  rd_waited = 0;
 wire gv_wait;
 wire mem_wait = sr ? (~m1_n & ~srv2) : 1'b1;
-wire wait_n = ~(~mreq_n & ~rd_n & ~rd_waited & mem_wait) & ~(~iorq_n & ~rd_n & (A[7:1] == 7'h74) & kanji_busy) & ~gv_wait;
+wire wait_n = ~(~mreq_n & ~rd_n & ~rd_waited & mem_wait) & ~(~iorq_n & ~rd_n & (A[7:1] == 7'h74) & kanji_busy) & ~gv_wait & ~(n80_catch | n80_hold);
 always @(posedge clk_sys) begin
 	if (mreq_n | rd_n) rd_waited <= 0;
 	else if (ce_cpu) rd_waited <= 1;
@@ -153,6 +153,44 @@ always @(posedge clk_sys) begin
 end
 wire cpu_reset = reset | rom_dl | ext_dl | rs_busy;   // and while the ROM store copies the model's ROM
 
+// .n80 (OSD Memory Image, index 3): a memory image from 8000h, started as CSCP's PC88::play_tape does: SP from
+// FF3Eh, PC = FF3Dh (a RET in every image seen), the rest of the machine as it was (no reset). All of the file is
+// loaded (CSCP: 8000-FF3F only): 40 of the 64 seen are 7F64h bytes, their RET going to a register-restore stub at
+// FF40h (POPs, EXX, LD SP, JP into the ROM). The Z80 is held in the
+// wait state of an opcode fetch while the image is written (ioctl_wait until then: no half-done instruction
+// writes into it), then fed LD SP,nn and JP FF3Dh in place of that fetch and the next five reads. Not a fetch
+// after a prefix (CB, DD, ED, FD): 31h would be read as that instruction's. No interrupt is taken from the
+// download's start until the JP.
+wire        n80_dl = ioctl_download & (ioctl_index[5:0] == 6'd3);
+wire        m1_rd = ~m1_n & ~mreq_n & ~rd_n;
+reg         m1_rdq = 0, after_pfx = 0;
+reg   [7:0] m1_byte = 0;
+wire        n80_catch = n80_dl & m1_rd & ~after_pfx;
+reg         n80_hold = 0;      // the CPU held in an opcode fetch
+reg   [2:0] n80_feed = 0;      // reads still to feed after the hold
+reg  [15:0] n80_sp = 0;
+reg         n80_rdq = 0;
+wire        n80_on = n80_hold | (n80_feed != 3'd0);
+wire  [2:0] n80_i = n80_hold ? 3'd0 : 3'd6 - n80_feed;
+wire  [7:0] n80_byte = n80_i == 3'd0 ? 8'h31 : n80_i == 3'd1 ? n80_sp[7:0] : n80_i == 3'd2 ? n80_sp[15:8] :
+                       n80_i == 3'd3 ? 8'hC3 : n80_i == 3'd4 ? 8'h3D : 8'hFF;
+wire        n80_we = n80_hold & n80_dl & ioctl_wr & (ioctl_addr < 25'h8000);
+always @(posedge clk_sys) begin
+	n80_rdq <= ~mreq_n & ~rd_n;
+	m1_rdq <= m1_rd;
+	if (m1_rd) m1_byte <= cpu_din;
+	if (m1_rdq & ~m1_rd) after_pfx <= (m1_byte == 8'hCB) | (m1_byte == 8'hDD) | (m1_byte == 8'hED) | (m1_byte == 8'hFD);
+	if (cpu_reset) begin n80_hold <= 0; n80_feed <= 0; end
+	else begin
+		if (n80_catch) n80_hold <= 1;
+		if (n80_we & (ioctl_addr[14:0] == 15'h7F3E)) n80_sp[7:0] <= ioctl_dout;
+		if (n80_we & (ioctl_addr[14:0] == 15'h7F3F)) n80_sp[15:8] <= ioctl_dout;
+		if (n80_hold & ~n80_dl) begin n80_hold <= 0; n80_feed <= 3'd6; end
+		else if ((n80_feed != 3'd0) & n80_rdq & (mreq_n | rd_n)) n80_feed <= n80_feed - 1'd1;
+	end
+end
+wire n80_wait = n80_dl & ~n80_hold;
+
 `ifdef VERILATOR
 T80s cpu
 `else
@@ -164,7 +202,7 @@ T80s #(.Mode(0), .T2Write(1), .IOWait(1)) cpu
 	.CEN(ce_cpu),
 	.OUT0(1'b0),
 	.WAIT_n(wait_n),
-	.INT_n(~irq),
+	.INT_n(~(irq & ~n80_dl & ~n80_on)),
 	.NMI_n(1'b1),
 	.BUSRQ_n(~(busrq & ~tape_turbo_on)),   // in turbo the display does not slow the Z80
 	.M1_n(m1_n),
@@ -373,7 +411,8 @@ wire        dma_ready;
 dpram_tdp #(.WORDS(32768), .AW(15)) ram
 (
 	.clk(clk_sys),
-	.addr_a(A[14:0]), .we_a(ram_we), .d_a(cpu_dout), .q_a(ram_q),
+	.addr_a(n80_hold ? ioctl_addr[14:0] : A[14:0]), .we_a(n80_hold ? n80_we : ram_we),
+	.d_a(n80_hold ? ioctl_dout : cpu_dout), .q_a(ram_q),
 	.addr_b(dma_addr[14:0]), .we_b(1'b0), .d_b(8'h00), .q_b(vram_q)
 );
 
@@ -550,7 +589,7 @@ always @(posedge clk_sys) begin
 	end
 end
 
-always @(*) cpu_din = ~mreq_n ? mem_dout : inta ? {4'd0, int_lvl, 1'b0} : io_dout;
+always @(*) cpu_din = ~mreq_n ? (n80_on ? n80_byte : mem_dout) : inta ? {4'd0, int_lvl, 1'b0} : io_dout;
 
 assign dbg_io_wr = io_wr & ~old_io_wr;
 reg old_io_rd = 0;
@@ -853,7 +892,7 @@ wire        da_busy, da_ready, da_rd, da_we, db_busy, db_ready, db_rd, db_we;
 wire [28:0] da_addr, db_addr;
 wire [63:0] da_din, db_din;
 wire  [7:0] da_be, db_be;
-assign ioctl_wait = rs_wait | cmt_wait;
+assign ioctl_wait = rs_wait | cmt_wait | n80_wait;
 
 rom_store rom_store
 (

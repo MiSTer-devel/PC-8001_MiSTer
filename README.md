@@ -80,8 +80,8 @@ PC-8001mkIISR (phase 6): N80 / N / N80SR-BASIC modes, three 16 KB GVRAM planes w
 palette, the N80SR video modes, hiragana, the YM2203 (jt03) and its interrupt. Every compared screen is
 pixel-identical to CSCP (tools/cscp_suite.sh). Not yet tried on a MiSTer.
 
-OSD (~/dev2/osd-standard.md): Drive 1 / Drive 2 (.d88, remembered), Tape (.cmt/.t88), Expansion ROM (8 KB at 6000h,
-resets), Load ROM (boot.rom); Memory 32/16 KB (the PC-8001 only); Machine: Model PC-8001 / PC-8001mkII /
+OSD (~/dev2/osd-standard.md): Drive 1 / Drive 2 (.d88, remembered), Tape (.cmt/.t88), Memory Image (.n80), Expansion
+ROM (8 KB at 6000h, resets), Load ROM (boot.rom); Memory 32/16 KB (the PC-8001 only); Machine: Model PC-8001 / PC-8001mkII /
 PC-8001mkIISR, Mode N80 / N / N80SR (mkII, SR), PCG-8100, Tape speed, Rewind; Video: Aspect ratio, Scale,
 Scandoubler Fx, Tape overlay; Input: Keyboard JP/US, Swap Alt/Win keys. Model, Mode, Memory and PCG-8100 apply at
 Apply and reset; the rest at once.
@@ -100,6 +100,14 @@ it is not shown (the game's instructions give it). Nothing is shown once the pro
 whose first block is in neither format (Pac Land's sides B-D), or with Tape overlay Off. The hint is drawn with
 the machine's own font, so names keep their case (`cload"river"`). Model and Mode are not hinted (Pac Land wants
 the SR in N80SR mode: the tape gives no sign of it).
+
+Memory Image (.n80): a snapshot of the RAM from 8000h taken on a running machine, loaded once BASIC is up and
+started at once (no reset) as CSCP does: SP from FF3Eh, then the RET at FF3Dh. The whole file is loaded (CSCP stops
+at FF3Fh; most images run on to FF63h, where that RET goes: a stub that restores the registers). Many were saved at
+a prompt, so the screen shows what was typed then, and the next step is the one the game's notes give (RUN at
+`Ok`, RETURN after `*GC100`). The image holds BASIC's work area, so it wants the BASIC it was saved under: one whose
+screen shows `Ver 1.1` runs on the PC-8001, a later one on the mkII in Mode N (sim: Crazy Climber, Missile
+Commander).
 
 - boot.rom: `tools/make_boot_rom.sh refs/emulators/mame_roms/pc8001 rom/boot.rom` (= `cat n80v110.rom font.rom
   disk.rom`; leave disk.rom out for a machine without the disk unit).
