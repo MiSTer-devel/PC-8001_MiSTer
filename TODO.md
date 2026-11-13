@@ -78,11 +78,14 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       219f9ab: no RUN when a machine-code block follows the BASIC program (69 of 107: some load it themselves,
       others need MON L first, Neo Kobe's "{cload X mon L}"; the tape does not say which). Mister 126 (slack
       0.255 ns): Galaxian (1980) shows CLOAD"GXB", then nothing; River still shows RUN (sim).
-- [ ] More titles: Galaxian, Slot Machine, Dig Dug (Year-Based .cmt); machine-code games started from MON.
+- [x] More titles: Galaxian, Slot Machine, Dig Dug (Year-Based .cmt); machine-code games started from MON.
       Galaxian (1980)[a1] (cload"GXB", mon, L, Ctrl+B, run, then RETURN at a black screen: line 450 waits on
       INPUT$(1)) plays in the sim as in CSCP (runs/cmp/galaxian_c4); the black screen also on Mister 126. While
       it waits, both blink an 8x8 block (the cursor) at cell (1,1), 48 frames a cycle; the frames compared had
       caught them in opposite phases (the open cursor-blink-phase item, section 1).
+      Slot Machine (1980) (cload"slot", run): identical to CSCP 300 and 1200 frames after RUN (runs/cmp/slot).
+      Dig Dug (1983)(Dempa) (mon, L, G D670 from its .txt; tape_cmp START=D670): its KEY FUNCTION screen identical
+      at +300; at +1200 only the flashing RET key differs (red vs white: the flash's phase) (runs/cmp/digdug).
 
 ## 3. Disk unit (PC-80S31)
 - [x] rtl/pc80s31.sv (the PC-6001 core's pc6031.sv: Z80 + disk.rom, 16 KB, uPD765, two cross-wired 8255s) at
