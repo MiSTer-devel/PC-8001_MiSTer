@@ -31,7 +31,9 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
 - [x] Compared: attribute blink (cscp_suite blink, 9 frames); reverse display (out &h51,&h21, runs/cmp/rvv:
       identical; as in CSCP it only reverses where the attribute mode has no reverse bit of its own, so no
       change under BASIC's transparent attributes).
-- [ ] Not compared yet: cursor blink phase, DMA underrun, non-transparent mode, a running game's timing
+- [x] Cursor blink phase: from boot, frames 600-700 every 4 identical to CSCP (runs/cmp/curblink; 48 frames a
+      cycle, 24 on). After a turbo tape the two run on different timelines, so phases there do not compare.
+- [ ] Not compared yet: DMA underrun, non-transparent mode, a running game's timing
       (BUSREQ per row vs CSCP's per line).
 - [x] US keyboard layout option (OSD Keyboard = US, sim --kbd-us): identical to CSCP (kbdus). A symbol whose
       SHIFT differs from the held SHIFT waits 50 ms for BASIC to see the new SHIFT (else US ^ @ : were lost).
