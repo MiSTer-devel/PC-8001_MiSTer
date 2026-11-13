@@ -7,7 +7,7 @@
 // The machine has one key for up/down, one for right/left and one for DEL/INS: Down, Left and Insert press
 // SHIFT with it. F6-F8 and F10 are SHIFT + F1-F3, F5 (as on the machine). STOP: F9 or End (not Pause: Main sends
 // no release for it, and its 77h, Num Lock's code, is left pressed).
-// KANA is a lock key (Caps Lock or the JP kana key toggles it). GRPH: Alt. Page Up / Page Down: pad = and ,.
+// KANA is a lock key (Caps Lock, right Alt or the JP kana key toggles it). GRPH: left Alt. Page Up / Page Down: pad = and ,.
 //
 // kbd_us (OSD Keyboard = US): the symbols printed on a US keyboard. A symbol key whose JIS key or shift differs
 // presses the JIS key with SHIFT as that symbol needs, while it is held (one such key at a time). Not with
@@ -120,7 +120,7 @@ always @(*) begin
 	9'h16B: begin {r, b} = {4'd8, 3'd2}; sh = 1; end   // Left
 	9'h066, 9'h171: {r, b} = {4'd8, 3'd3};   // Backspace, Delete: DEL
 	9'h170: begin {r, b} = {4'd8, 3'd3}; sh = 1; end   // Insert
-	9'h011, 9'h111: {r, b} = {4'd8, 3'd4};   // Alt: GRPH
+	9'h011: {r, b} = {4'd8, 3'd4};           // left Alt: GRPH
 	9'h012, 9'h059: {r, b} = {4'd8, 3'd6};   // SHIFT
 	9'h014, 9'h114: {r, b} = {4'd8, 3'd7};   // CTRL
 	// 09
@@ -203,8 +203,8 @@ always @(posedge clk) begin
 		end
 	end
 	if (old_stb != ps2_key[10]) begin
-		if ({ext, code} == 9'h058 || {ext, code} == 9'h013) begin
-			if (press) kana <= ~kana;   // Caps Lock / JP kana: KANA lock
+		if ({ext, code} == 9'h058 || {ext, code} == 9'h013 || {ext, code} == 9'h111) begin
+			if (press) kana <= ~kana;   // Caps Lock / JP kana / right Alt: KANA lock
 		end
 		else if (ov && !ext && code == ov_code) begin
 			if (!press) begin

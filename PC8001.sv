@@ -110,7 +110,7 @@ wire [127:0] status;
 wire  [10:0] ps2_key;
 
 // Input: Swap Alt/Win keys (acts at once): left Alt (11h) <-> left Win (E0 1Fh), right Alt (E0 11h) <-> right
-// Win (E0 27h). Alt is GRPH (rtl/pc8001_kbd.sv), so with Yes the Win key next to the space bar is GRPH.
+// Win (E0 27h). Left Alt is GRPH and right Alt KANA (rtl/pc8001_kbd.sv), so with Yes the Win keys are.
 reg [8:0] key_sw;
 always @(*) begin
 	key_sw = ps2_key[8:0];

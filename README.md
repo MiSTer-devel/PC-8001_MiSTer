@@ -86,6 +86,9 @@ PC-8001mkIISR, Mode N80 / N / N80SR (mkII, SR), PCG-8100, Tape speed, Rewind; Vi
 Scandoubler Fx, Tape overlay; Input: Keyboard JP/US, Swap Alt/Win keys. Model, Mode, Memory and PCG-8100 apply at
 Apply and reset; the rest at once.
 
+Keys (rtl/pc8001_kbd.sv): GRPH = left Alt; KANA (a lock) = right Alt, Caps Lock or the JP kana key; STOP = F9 or
+End; F6-F8 and F10 = SHIFT + F1-F3 and F5; Down / Left / Insert = SHIFT + Up / Right / DEL.
+
 Video (~/dev2/video-standard.md): 640 x 200 at 14.318 MHz dots, 15.7 kHz, in every model. Original aspect is the
 real shape, 48:35 (1.37:1): pixel aspect 3/7 (6.136 / 14.318 MHz), 640*3 : 200*7. No vertical crop (200 lines are
 already 5x at 1080p). On HDMI, leave Scandoubler Fx at None for the biggest integer picture (the scandoubled

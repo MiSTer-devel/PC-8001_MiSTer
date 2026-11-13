@@ -197,6 +197,9 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
       README with the new OSD pages and fixes; the SR Game Pack disks 1-3 in place of Untested/). Not in git.
 - [x] sys/ updated to Template_MiSTer e901a9f (2026-11-03; 4b14683): only hps_io.sv changed. Built, timing met,
       boot/OSD/beep checked on Mister 126 (~/dev2/sys-standard.md).
+- [x] Tester request (Danjuro, 2026-11-12): right Alt as the KANA key. Right Alt now toggles the KANA lock (with
+      Caps Lock and the JP kana key), left Alt stays GRPH, in both keyboard modes; Swap Alt/Win moves both to the
+      Win keys. Sim: abc{RALT}abc{RALT}abc identical to the same with {CAPS} (abcチコソabc).
 - [ ] Public repo.
 
 ## Open questions (from PLAN.md)
