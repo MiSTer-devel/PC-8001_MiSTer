@@ -69,7 +69,8 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       FF3Fh only, and its headless --tape rejects .n80, so no CSCP compare). Sim: Scramble, New Rally-X start;
       Double Rope, Galaxy Wars (RUN), Heavy Bomber (RETURN) reach their titles; Crazy Climber and Missile
       Commander (saved under BASIC 1.2/1.4) give Illegal function call on the PC-8001's 1.1, start on the mkII in
-      Mode N. Not yet on hardware.
+      Mode N (RUN), as do Lunar City SOS and Deep Scan; Space Mouse blank at 1500 there. Mister 126
+      (465a701, setup slack 0.614 ns): Scramble's attract mode from an MGL (index 3, delay 5).
 - [x] Next-step hint (tape standard): read the name from the tape, "TYPE CLOAD"/"MON L" (rtl/tape_hint.sv,
       6c7e556). TYPE CLOAD"name" / TYPE RUN for CSAVE tapes, TYPE MON L for monitor tapes, nothing otherwise.
       Model: 107 BASIC, 32 machine code, 6 none of 145 tapes; sim sweep of 14 (typing the hint loads each).
