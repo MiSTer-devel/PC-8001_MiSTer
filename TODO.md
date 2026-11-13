@@ -37,8 +37,11 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       (BUSREQ per row vs CSCP's per line).
 - [x] US keyboard layout option (OSD Keyboard = US, sim --kbd-us): identical to CSCP (kbdus). A symbol whose
       SHIFT differs from the held SHIFT waits 50 ms for BASIC to see the new SHIFT (else US ^ @ : were lost).
-- [ ] Disk-unit check: with FCh-FFh reading FFh the ROM waits ~2.7 s before BASIC (CSCP, with an 8255
+- [x] Disk-unit check: with FCh-FFh reading FFh the ROM waits ~2.7 s before BASIC (CSCP, with an 8255
       always present, does not). Settled by the disk unit (phase 3) or by what a bare PC-8001 reads there.
+      2026-11-12: no unit, the sim and CSCP (pc8001_nodisk) change screen on the same frames (BASIC at 254-266,
+      then the cursor at 290, 315 ...); with the unit and no disk, BASIC by 150 as MAME. A bare machine on
+      hardware is not checked.
 - [x] Clocks: CPU 3.9936 MHz (15.9744 MHz / 4: PC-8001B manual, parts list), dot 14.31818 MHz
       (HARDWARE_NOTES 11).
 - [ ] Schematic: work out the WAIT circuit (IC47/IC9) and the DMA/BUSREQ timing.
