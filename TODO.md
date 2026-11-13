@@ -200,6 +200,7 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
 - [x] Tester request (Danjuro, 2026-11-12): right Alt as the KANA key. Right Alt now toggles the KANA lock (with
       Caps Lock and the JP kana key), left Alt stays GRPH, in both keyboard modes; Swap Alt/Win moves both to the
       Win keys. Sim: abc{RALT}abc{RALT}abc identical to the same with {CAPS} (abcチコソabc).
+      Mister 192 (e940a28, slack 0.256 ns): the same abcチコソabc via KVMS ralt; left Alt+A / Alt+S still GRPH.
 - [ ] Public repo.
 
 ## Open questions (from PLAN.md)
