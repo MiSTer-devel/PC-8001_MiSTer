@@ -189,7 +189,9 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
       Fx), Original = 48:35 (640 x 200, PAR 3/7), aspect acting at once. OSD: Memory on the top page (hidden on
       the mkII/SR), Load ROM last, P3 Input (Keyboard, Swap Alt/Win: checked), Mode hidden on the PC-8001,
       SC0/SC1. Tape overlay checked through the mixer. Not checked: a VGA monitor, a 15 kHz CRT.
-- [ ] PCG-8100 sound on hardware.
+- [x] PCG-8100 sound on hardware (Mister 192, e940a28, 2026-11-13): PCG-8100 On, out 15,54 / out 12,232 /
+      out 12,3 / out 2,8 (8253 ch 0 = 1000, mode 3; 02h bit 3): 3994 Hz, amplitude 5018; then beep 1 alone:
+      2400 Hz, 5058. PCG/beep 0.99 (CSCP 0.98). misterkvms-cli record, tools/audio_tones.py.
 - [ ] Host-injected typing (KVMS) in JP mode sometimes loses SHIFT on the second of two shifted keys: SHIFT and
       the key arrive together and BASIC reads SHIFT apart from the scan (as kbd_us's settle, not applied in JP).
 - [x] Tester zip under 20 MB: releases/PC8001_tester_20261105.zip (2.2 MB; rbf, the 3 boot ROMs, 11 tapes, 9 disks + 7 untested SR disks, README with how to start each). Not in git.
