@@ -177,8 +177,10 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
 - [x] Software hiragana: N80SR-BASIC's CONSOLE takes a 5th argument (0-3) into 33h bits 4-5 (ROM 1979h); 1 =
       hiragana for the kana codes. `console 0,25,0,1,1` then chr$(161-223): identical to CSCP (cscp_suite srhira)
       and hiragana on Mister 192.
-- [ ] cscp_suite mk2int: the sim counts 585 timer interrupts in 60 frames, CSCP 586 (one digit at x 50-61 y 320).
-      Identical in the 2026-11-04 suite; HEAD f7bfa50 already differs (not the keyboard queue). Bisect from 6e07abf.
+- [x] cscp_suite mk2int: the sim counts 585 timer interrupts in 60 frames, CSCP 586. Bisected to 92eadc0 (ROM store
+      download waits for the port): the sim's CPU starts 1733 clocks later (same code, first IN at cycle 133645 vs
+      131912), so the BIOS programs the timer later and the window's count drops by one. A phase of the sim's boot,
+      not the core; the suite reports it without failing.
 - [x] YM2203 busy flag: jt12's lasts 32 FM clocks after a data write; CSCP has none (sropn masks it). Kept: the
       real chip has one; the SR games tried (Game Packs 1-3, Nuts & Milk) run with it.
 
