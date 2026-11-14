@@ -45,6 +45,9 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       core 3.2 % slower: DMA steal of 5.95 clocks a byte, CSCP overlapping it; HARDWARE_NOTES 11). VRTC-paced games
       run at CSCP's rate (Galaxian: the same 7-frame step). CPU-bound code is 3.2 % slower than CSCP; which is
       nearer a real PC-8001 needs a measurement on one (see the WAIT item: the schematic suggests fewer waits).
+      Experiment (sim only, not committed): with the schematic's waits (one on M1 and reads below 8000h, none on
+      RAM data reads) the same loop takes 38.230 s, within 0.07 % of CSCP: the schematic reading plus the core's
+      DMA steal lands where CSCP's every-read wait plus its overlapped steal does.
 - [x] US keyboard layout option (OSD Keyboard = US, sim --kbd-us): identical to CSCP (kbdus). A symbol whose
       SHIFT differs from the held SHIFT waits 50 ms for BASIC to see the new SHIFT (else US ^ @ : were lost).
 - [x] Disk-unit check: with FCh-FFh reading FFh the ROM waits ~2.7 s before BASIC (CSCP, with an 8255
