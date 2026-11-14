@@ -56,7 +56,8 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       Later the same day (web search, page 4): 1WAIT = IC43 flip-flop clocked by phi, D from a NOR of IC51
       (M1-bar AND A15) and its own Q, cleared outside reads: most likely one wait on opcode fetches and on reads
       below 8000h, none on RAM data reads or writes (CSCP and the core: one on every read). Medium confidence
-      (a wire crossing at IC35). Not applied; HARDWARE_NOTES 11.
+      (a wire crossing at IC35). Not applied; HARDWARE_NOTES 11. Decided 2026-11-14: keep CSCP's waits, no OSD
+      option unless software shows a speed problem (MAME's TODO notes some games run suspiciously fast there).
 - [x] CPU speed against CSCP (2026-11-03): DMA steal counter overflowed (16 bits; a row's burst is 182760),
       so the Z80 ran 26 % fast; memory waits were M1 only (CSCP: every read). Now per-instruction clocks match
       CSCP; a BASIC loop is 3.4 % slower than CSCP, from CSCP's steal overlapping execution (HARDWARE_NOTES 11).
