@@ -127,7 +127,10 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       3.9936 MHz, three 1-bit channels switched by 02h bits 3, 6, 7.
 - [ ] PCG games against CSCP (CSCP has the PCG-8100 on by default): PCG Dig Dug and The Dusty World (.d88,
       autostart) draw the same PCG characters, but the attract mode is at another phase (Dig Dug's sprites a
-      few frames apart; Dusty World on another screen): load time. Galaxian PCG not tried.
+      few frames apart; Dusty World on another screen): load time. Galaxian (Game Kyojin, PCG; .d88 from MAME's
+      list): identical to CSCP through the title (900-4000); after RETURN at 2000 the same game state, the
+      formation stepping every 7 frames in both, the sim 2 frames earlier (2286/2293/2300 vs 2288/2295/2302):
+      a fixed phase, the same rate. runs/cmp/galgk, galgk3.
 - [x] uPD1990A (rtl/upd1990a.sv, as CSCP): 10h bits 0-3 C0-C2 / DIN, 40h bit 1 STB (falling), bit 2 CLK, 40h
       read bit 4 DOUT. Time from the MiSTer RTC (the sim: 2026-11-03 12:00:00).
 - [x] TIME$ set and read: identical to CSCP (time).
