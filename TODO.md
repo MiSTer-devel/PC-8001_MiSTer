@@ -170,7 +170,13 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
       (Mode N80SR; number + RETURN; pack 2 also in N80). 9 of the 12 menu entries checked: packs 1 and 3 all start
       (sim; Excite Bike on Mister 126), pack 2's Golf (sim); pack 2's Dig Dug / Xevious / Nuts & Milk not tried; the split copies also start via the system disk (run"NAME"). Type Game is not
       in a pack: system disk, swap at "How many files", run"game.nsr". The tester zip now has the packs.
-- [ ] Software: hiragana test; keyboard row 0Ah.
+- [x] Keyboard row 0Ah (CSCP key_table): Tab, Down, Left, HELP = F11, COPY = Print Screen, pad - and /, CAPS =
+      SHIFT + Caps Lock (a lock). Sim: Tab/Down/Left 254/253/251. Mister 192: Tab, Down, Left, F11, Print Screen
+      (254 253 251 247 239) and CAPS (127); pad - and / not sent (KVMS has no names). Main keeps Scroll Lock and Num
+      Lock (neither reaches the core), so CAPS is not on them.
+- [ ] Software: hiragana test.
+- [ ] cscp_suite mk2int: the sim counts 585 timer interrupts in 60 frames, CSCP 586 (one digit at x 50-61 y 320).
+      Identical in the 2026-11-04 suite; HEAD f7bfa50 already differs (not the keyboard queue). Bisect from 6e07abf.
 - [x] YM2203 busy flag: jt12's lasts 32 FM clocks after a data write; CSCP has none (sropn masks it). Kept: the
       real chip has one; the SR games tried (Game Packs 1-3, Nuts & Milk) run with it.
 
@@ -192,8 +198,12 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
 - [x] PCG-8100 sound on hardware (Mister 192, e940a28, 2026-11-13): PCG-8100 On, out 15,54 / out 12,232 /
       out 12,3 / out 2,8 (8253 ch 0 = 1000, mode 3; 02h bit 3): 3994 Hz, amplitude 5018; then beep 1 alone:
       2400 Hz, 5058. PCG/beep 0.99 (CSCP 0.98). misterkvms-cli record, tools/audio_tones.py.
-- [ ] Host-injected typing (KVMS) in JP mode sometimes loses SHIFT on the second of two shifted keys: SHIFT and
-      the key arrive together and BASIC reads SHIFT apart from the scan (as kbd_us's settle, not applied in JP).
+- [x] Host-injected typing (KVMS) lost SHIFT: SHIFT and the key arrive together and BASIC reads SHIFT apart from
+      the scan. pc8001_kbd delays a key pressed within 16 ms of a SHIFT change, and the events after it, by 16 ms
+      (a queue, so each key keeps its own hold; SHIFT presses show at once). A first try that held the key back
+      and then forced a 33 ms press dropped letters (the next key cut it short). Mister 192: ABCDEFGHIJ and
+      AbCdEfGhIj exact with misterkvms-cli type --hold 50; at the default 30 ms hold shifted letters still drop
+      (lowercase is fine), so type with --hold 50. The sim leads SHIFT by a frame, so the queue never engages there.
 - [x] Tester zip under 20 MB: releases/PC8001_tester_20261105.zip (2.2 MB; rbf, the 3 boot ROMs, 11 tapes, 9 disks + 7 untested SR disks, README with how to start each). Not in git.
 - [x] Tester zip 20261111: releases/PC8001_tester_20261111.zip (2.4 MB; cb921bb rbf, Pac Land added in 20261105b/c,
       README with the new OSD pages and fixes; the SR Game Pack disks 1-3 in place of Untested/). Not in git.

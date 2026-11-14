@@ -7,7 +7,10 @@
 // The machine has one key for up/down, one for right/left and one for DEL/INS: Down, Left and Insert press
 // SHIFT with it. F6-F8 and F10 are SHIFT + F1-F3, F5 (as on the machine). STOP: F9 or End (not Pause: Main sends
 // no release for it, and its 77h, Num Lock's code, is left pressed).
-// KANA is a lock key (Caps Lock, right Alt or the JP kana key toggles it). GRPH: left Alt. Page Up / Page Down: pad = and ,.
+// KANA is a lock key (Caps Lock, right Alt or the JP kana key toggles it). GRPH: left Alt.
+// SR row 0Ah (CSCP key_table; FFh on the PC-8001 and mkII): 0 TAB (Tab), 1 down, 2 left (Down / Left, which also
+// press SHIFT + Up / Right as above), 3 HELP (F11; CSCP End, here STOP), 4 COPY (Print Screen; CSCP F12, here the
+// OSD), 5 pad -, 6 pad /, 7 CAPS (SHIFT + Caps Lock toggles it, a lock; Main keeps Scroll Lock and Num Lock). Page Up / Page Down: pad = and ,.
 //
 // kbd_us (OSD Keyboard = US): the symbols printed on a US keyboard. A symbol key whose JIS key or shift differs
 // presses the JIS key with SHIFT as that symbol needs, while it is held (one such key at a time). Not with
@@ -16,6 +19,9 @@
 // ~50 ms later: BASIC reads SHIFT (port 08h, 1007h) apart from the key scan (1041h) and decodes a key with the
 // SHIFT it saw last, so a key whose SHIFT changes with it reads as the other symbol (US ^ as SHIFT+^, : as *).
 // That key is then held at least ~33 ms (BASIC takes a key seen in two scans).
+// In both layouts, host-injected typing (SHIFT and the key arriving together, so BASIC saw the key without
+// SHIFT): a key pressed within ~16 ms of a SHIFT change and the events after it are delayed 16 ms (see SH_SETTLE).
+// A person presses SHIFT well before the key, so nothing is delayed.
 
 module pc8001_kbd
 (
@@ -23,20 +29,66 @@ module pc8001_kbd
 	input             reset,
 	input      [10:0] ps2_key,
 	input             kbd_us,
+	input             sr,             // the SR's row 0Ah
 	input       [3:0] row,
 	output reg  [7:0] data
 );
 
 reg [7:0] m[0:9];          // 1 = pressed
 reg       kana = 0;
+reg [6:0] m10 = 0;         // SR row 0Ah bits 0-6, 1 = pressed
+reg       caps = 0;        // SR CAPS lock (row 0Ah bit 7)
 reg       fshift = 0;      // SHIFT held for an F6-F10 / Down / Left / Insert key
 reg       old_stb = 0;
 
 integer i;
 
-wire       press = ps2_key[9];
-wire       ext   = ps2_key[8];
-wire [7:0] code  = ps2_key[7:0];
+// SHIFT settle (host-injected typing): a key pressed within SH_SETTLE of a SHIFT change, and every event after it
+// until the queue drains with no key down, reaches the matrix SH_SETTLE late, in order and with its own timing.
+// A SHIFT press shows at once (imm_sh), so SHIFT always leads the key and trails its release.
+localparam SH_SETTLE = 20'd458182;  // 16 ms, about a frame at 28.636 MHz
+wire       in_stb   = ps2_key[10] != old_stb;
+wire [8:0] in_code  = ps2_key[8:0];
+wire       in_shift = in_code == 9'h012 || in_code == 9'h059;
+wire       in_mod   = in_shift || in_code == 9'h014 || in_code == 9'h114 || in_code == 9'h011 ||
+                      in_code == 9'h111 || in_code == 9'h058 || in_code == 9'h013;
+reg  [1:0] raw_sh = 0;             // left, right SHIFT as pressed now
+wire       imm_sh = |raw_sh;
+reg        imm_q = 0;
+reg [19:0] sh_age = 0;             // counts down SH_SETTLE from the last SHIFT change
+reg [19:0] tnow = 0;
+reg  [9:0] q_key[0:15];
+reg [19:0] q_t[0:15];
+reg  [3:0] q_rd = 0, q_wr = 0;
+wire       q_empty = q_rd == q_wr;
+reg        dmode = 0;
+wire       any_key;                // a key other than SHIFT, CTRL, GRPH, KANA is down in the matrix
+wire       trig = in_stb && ps2_key[9] && !in_mod && sh_age != 0;
+wire       q_push = in_stb && (trig || dmode || !q_empty);
+wire       q_due = !q_empty && (tnow - q_t[q_rd]) >= SH_SETTLE;
+reg        ev = 0;                 // one key event for the matrix
+reg  [9:0] ev_key = 0;
+
+always @(posedge clk) begin
+	tnow <= tnow + 1'd1;
+	ev <= 0;
+	if (imm_sh != imm_q) begin imm_q <= imm_sh; sh_age <= SH_SETTLE; end
+	else if (sh_age != 0) sh_age <= sh_age - 1'd1;
+	if (in_stb && in_code == 9'h012) raw_sh[0] <= ps2_key[9];
+	if (in_stb && in_code == 9'h059) raw_sh[1] <= ps2_key[9];
+	if (q_push) begin
+		q_key[q_wr] <= ps2_key[9:0]; q_t[q_wr] <= tnow; q_wr <= q_wr + 1'd1;
+		if (trig) dmode <= 1;
+	end
+	else if (in_stb) begin ev <= 1; ev_key <= ps2_key[9:0]; end
+	if (q_due && !(in_stb && !q_push)) begin ev <= 1; ev_key <= q_key[q_rd]; q_rd <= q_rd + 1'd1; end
+	if (q_empty && !q_push && !ev && !any_key) dmode <= 0;   // !ev: the last event reaches m first
+	if (reset) begin raw_sh <= 0; q_rd <= 0; q_wr <= 0; dmode <= 0; end
+end
+
+wire       press = ev_key[9];
+wire       ext   = ev_key[8];
+wire [7:0] code  = ev_key[7:0];
 
 reg [3:0] r;
 reg [2:0] b;
@@ -168,14 +220,17 @@ endfunction
 wire       pshift = m[8][6];
 wire [8:0] us = us_map(code, pshift);
 wire       us_on = kbd_us && !ext && us[8] && !kana && !m[8][4];
-reg        ov = 0, ov_sh = 0;      // a US symbol key held: its JIS key is pressed with SHIFT = ov_sh
-reg  [7:0] ov_code;
+reg        ov = 0, ov_sh = 0;      // a US symbol key, or a key just after a SHIFT change: pressed with SHIFT = ov_sh
+reg  [8:0] ov_code;                // {ext, code} of the PC key
 reg  [6:0] ov_pos;
 reg        ov_key = 0;             // its JIS key is down (else waiting for SHIFT to settle)
 reg        ov_rel = 0;             // released before the minimum hold ended
 reg [20:0] ov_cnt = 0;
 localparam OV_WAIT = 21'd1431818;  // 50 ms (3 frames) at 28.636 MHz: SHIFT settles
 localparam OV_HOLD = 21'd954545;   // 33 ms (2 frames): the shortest press
+wire       modkey = (r == 4'd8) && b[2];   // GRPH, KANA, SHIFT, CTRL
+assign     any_key = (|m[0]) | (|m[1]) | (|m[2]) | (|m[3]) | (|m[4]) | (|m[5]) | (|m[6]) | (|m[7]) |
+                     (|m[9]) | (|m[8][3:0]) | (|m10);
 
 always @(posedge clk) begin
 	old_stb <= ps2_key[10];
@@ -183,6 +238,8 @@ always @(posedge clk) begin
 		for (i = 0; i < 10; i = i + 1) m[i] <= 8'h00;
 		kana <= 0;
 		fshift <= 0;
+		m10 <= 0;
+		caps <= 0;
 		ov <= 0;
 		ov_key <= 0;
 		ov_cnt <= 0;
@@ -202,11 +259,22 @@ always @(posedge clk) begin
 			end
 		end
 	end
-	if (old_stb != ps2_key[10]) begin
+	if (ev) begin
+		case ({ext, code})   // SR row 0Ah, beside the main map
+		9'h00D: m10[0] <= press;   // Tab: TAB
+		9'h172: m10[1] <= press;   // Down
+		9'h16B: m10[2] <= press;   // Left
+		9'h078: m10[3] <= press;   // F11: HELP
+		9'h17C: m10[4] <= press;   // Print Screen: COPY
+		9'h07B: m10[5] <= press;   // pad -
+		9'h14A: m10[6] <= press;   // pad /
+		default: ;
+		endcase
 		if ({ext, code} == 9'h058 || {ext, code} == 9'h013 || {ext, code} == 9'h111) begin
-			if (press) kana <= ~kana;   // Caps Lock / JP kana / right Alt: KANA lock
+			if (press && sr && pshift && {ext, code} == 9'h058) caps <= ~caps;   // SR: SHIFT + Caps Lock: CAPS lock
+			else if (press) kana <= ~kana;   // Caps Lock / JP kana / right Alt: KANA lock
 		end
-		else if (ov && !ext && code == ov_code) begin
+		else if (ov && {ext, code} == ov_code) begin
 			if (!press) begin
 				if (ov_key && ov_cnt == 0) begin m[ov_pos[6:3]][ov_pos[2:0]] <= 1'b0; ov <= 0; end
 				else ov_rel <= 1'b1;
@@ -214,7 +282,7 @@ always @(posedge clk) begin
 		end
 		else if (press && us_on) begin
 			if (ov) m[ov_pos[6:3]][ov_pos[2:0]] <= 1'b0;
-			ov <= 1'b1; ov_sh <= us[0]; ov_code <= code; ov_pos <= us[7:1]; ov_rel <= 0;
+			ov <= 1'b1; ov_sh <= us[0]; ov_code <= {1'b0, code}; ov_pos <= us[7:1]; ov_rel <= 0;
 			if (us[0] == (pshift | fshift)) begin
 				m[us[7:4]][us[3:1]] <= 1'b1;
 				ov_key <= 1'b1;
@@ -226,6 +294,10 @@ always @(posedge clk) begin
 			end
 		end
 		else if (hit) begin
+			if (press && ov && !modkey) begin   // another key: the held one ends, SHIFT is the keyboard's again
+				m[ov_pos[6:3]][ov_pos[2:0]] <= 1'b0;
+				ov <= 0;
+			end
 			m[r][b] <= press;
 			if (sh) fshift <= press;
 		end
@@ -236,7 +308,8 @@ end
 always @(*) begin
 	data = 8'hFF;
 	if (row <= 4'd9) data = ~m[row];
-	if (row == 4'd8) data = ~({m[8][7], ov ? ov_sh : (pshift | fshift), m[8][5] | kana, m[8][4:0]});
+	if (row == 4'd10 && sr) data = ~{caps, m10};
+	if (row == 4'd8) data = ~({m[8][7], ov ? ov_sh : (pshift | fshift | imm_sh), m[8][5] | kana, m[8][4:0]});
 end
 
 endmodule

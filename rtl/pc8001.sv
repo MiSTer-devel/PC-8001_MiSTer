@@ -515,7 +515,7 @@ end
 reg [7:0] io_dout;
 always @(*) begin
 	casez (A[7:0])
-	8'h0?:   io_dout = kbd_dout;                     // keyboard rows 00h-09h
+	8'h0?:   io_dout = kbd_dout;                     // keyboard rows 00h-09h (the SR: 0Ah)
 	8'h2?:   io_dout = usart_dout;                   // 8251
 	// 5 VRTC, 4 RTC DOUT, 2 CMT carrier, 0 printer BUSY (never: the printer takes every byte); 7, 6, 1 high,
 	// 3 low, as CSCP
@@ -703,6 +703,7 @@ pc8001_kbd kbd
 	.reset(reset),
 	.ps2_key(ps2_key),
 	.kbd_us(kbd_us),
+	.sr(sr),
 	.row(A[3:0]),
 	.data(kbd_dout)
 );

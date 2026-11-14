@@ -88,6 +88,8 @@ Apply and reset; the rest at once.
 
 Keys (rtl/pc8001_kbd.sv): GRPH = left Alt; KANA (a lock) = right Alt, Caps Lock or the JP kana key; STOP = F9 or
 End; F6-F8 and F10 = SHIFT + F1-F3 and F5; Down / Left / Insert = SHIFT + Up / Right / DEL.
+On the SR its extra row (port 0Ah) also: Tab, Down, Left, HELP = F11, COPY = Print Screen, keypad - and /, CAPS
+(a lock) = SHIFT + Caps Lock.
 
 Video (~/dev2/video-standard.md): 640 x 200 at 14.318 MHz dots, 15.7 kHz, in every model. Original aspect is the
 real shape, 48:35 (1.37:1): pixel aspect 3/7 (6.136 / 14.318 MHz), 640*3 : 200*7. No vertical crop (200 lines are
