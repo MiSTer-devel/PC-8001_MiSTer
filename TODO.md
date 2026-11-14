@@ -50,7 +50,9 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       hardware is not checked.
 - [x] Clocks: CPU 3.9936 MHz (15.9744 MHz / 4: PC-8001B manual, parts list), dot 14.31818 MHz
       (HARDWARE_NOTES 11).
-- [ ] Schematic: work out the WAIT circuit (IC47/IC9) and the DMA/BUSREQ timing.
+- [ ] Schematic: work out the WAIT circuit (IC47/IC9) and the DMA/BUSREQ timing. 2026-11-14: read at 400 dpi
+      (HARDWARE_NOTES 11): WAIT = IC9 AND of the bus WAIT and a line from the counter area; that line's source is
+      not readable in this scan. Needs a clearer schematic or a measurement on a real machine.
 - [x] CPU speed against CSCP (2026-11-03): DMA steal counter overflowed (16 bits; a row's burst is 182760),
       so the Z80 ran 26 % fast; memory waits were M1 only (CSCP: every read). Now per-instruction clocks match
       CSCP; a BASIC loop is 3.4 % slower than CSCP, from CSCP's steal overlapping execution (HARDWARE_NOTES 11).
