@@ -239,6 +239,9 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
       Mister 192 (e940a28, slack 0.256 ns): the same abcチコソabc via KVMS ralt; left Alt+A / Alt+S still GRPH.
 - [x] Tester zip 20261113: releases/PC8001_tester_20261113.zip (2.7 MB; e940a28 rbf: right Alt = KANA, Memory
       Image .n80 with 9 images, the tape hint, sys/ update; tapes + Galaxian 1980, Slot Machine, Dig Dug). Not in git.
+- [x] Tester zip 20261114: releases/PC8001_tester_20261114.zip (2.7 MB; bdde72c rbf: SHIFT queue for host
+      typing, SR row 0Ah keys; README: SR keys, hiragana via CONSOLE, PCG Galaxian (Game Kyojin) disk added and
+      played on Mister 126 with the PCG-8100). Not in git.
 - [ ] Public repo.
 
 ## Open questions (from PLAN.md)
