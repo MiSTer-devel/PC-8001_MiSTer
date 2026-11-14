@@ -33,8 +33,9 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       change under BASIC's transparent attributes).
 - [x] Cursor blink phase: from boot, frames 600-700 every 4 identical to CSCP (runs/cmp/curblink; 48 frames a
       cycle, 24 on). After a turbo tape the two run on different timelines, so phases there do not compare.
-- [ ] Not compared yet: DMA underrun, non-transparent mode, a running game's timing
-      (BUSREQ per row vs CSCP's per line).
+- [x] Non-transparent attributes (CRTC parameter 5 = 93h, attribute bytes at odd columns): identical to CSCP
+      once the fill ends (cscp_suite nontrans, frame 6000; earlier frames differ only by the typing speed).
+- [ ] Not compared yet: DMA underrun, a running game's timing (BUSREQ per row vs CSCP's per line).
 - [x] US keyboard layout option (OSD Keyboard = US, sim --kbd-us): identical to CSCP (kbdus). A symbol whose
       SHIFT differs from the held SHIFT waits 50 ms for BASIC to see the new SHIFT (else US ^ @ : were lost).
 - [x] Disk-unit check: with FCh-FFh reading FFh the ROM waits ~2.7 s before BASIC (CSCP, with an 8255

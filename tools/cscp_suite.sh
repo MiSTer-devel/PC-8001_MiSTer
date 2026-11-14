@@ -15,6 +15,8 @@ $T pset   1400   'console 0,25,0,1\n{WAIT60}for i=0 to 79:pset(i,i/2),5:next\n' 
 $T chars  1700   'width 80,25\n{WAIT60}for i=32 to 255:print chr$(i);:next\n' -- --type-rate 6:6 || rc=1
 $T sg40   1300   'for i=0 to 255:print chr$(i);:next\n'                  || rc=1
 $T blink  2400,2412,2424,2436,2448,2460,2472,2484,2496 '10 cls:print "blink";\n20 poke &hf350,0:poke &hf351,2:poke &hf352,10:poke &hf353,0\n30 goto 20\nrun\n' || rc=1
+# non-transparent attributes: the CRTC's fifth parameter 93h (attribute mode 4), letters at even columns, attributes at odd
+$T nontrans 6000 '10 width 80\n20 out &h51,0:out &h50,&hce:out &h50,&h93:out &h50,&h69:out &h50,&hbe:out &h50,&h93:out &h51,&h43:out &h51,&h20\n30 for y=0 to 24:for x=0 to 39:a=&hf300+y*120+x*2:poke a,65+(x+y) mod 26:poke a+1,(x*5+y*3) and &hfd:next:next\n40 goto 40\nrun\n' || rc=1
 Y=refs/software/archive_org/yearbased_pc8001_unpacked
 TAPE="$Y/1983/PC-8001/River Patrol (1983)(Micom BASIC).t88" TEXT2='1500:list 100-300\n' $T tape_t88 2000 'cload"river"\n' || rc=1
 TAPE="$Y/1982/PC-8001/Kumo Vader (1982)(Micom BASIC).cmt" TEXT2='1300:list 100-300\n' $T tape_cmt 1800 'cload"KUMO"\n' || rc=1
