@@ -35,7 +35,12 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       cycle, 24 on). After a turbo tape the two run on different timelines, so phases there do not compare.
 - [x] Non-transparent attributes (CRTC parameter 5 = 93h, attribute bytes at odd columns): identical to CSCP
       once the fill ends (cscp_suite nontrans, frame 6000; earlier frames differ only by the typing speed).
-- [ ] Not compared yet: DMA underrun, a running game's timing (BUSREQ per row vs CSCP's per line).
+- [x] DMA underrun. Channel 2 off: blank, identical to CSCP (cscp_suite dmaoff). A DMA count of 10 rows (1200
+      bytes, mode C4h = autoload + TC stop): the sim shows rows 0-9 twice, as MAME 0.283 (its 8257 reloads channel
+      2 from 3 at TC and keeps going; autoload wins over TC stop); CSCP blanks the screen (it takes a frame's
+      buffer as one block and stops at its end). Kept as MAME / the 8257 datasheet; hardware not checked.
+      runs/cmp/dmashort, runs/mame/dmashort.
+- [ ] Not compared yet: a running game's timing (BUSREQ per row vs CSCP's per line).
 - [x] US keyboard layout option (OSD Keyboard = US, sim --kbd-us): identical to CSCP (kbdus). A symbol whose
       SHIFT differs from the held SHIFT waits 50 ms for BASIC to see the new SHIFT (else US ^ @ : were lost).
 - [x] Disk-unit check: with FCh-FFh reading FFh the ROM waits ~2.7 s before BASIC (CSCP, with an 8255
