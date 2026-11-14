@@ -40,7 +40,11 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       2 from 3 at TC and keeps going; autoload wins over TC stop); CSCP blanks the screen (it takes a frame's
       buffer as one block and stops at its end). Kept as MAME / the 8257 datasheet; hardware not checked.
       runs/cmp/dmashort, runs/mame/dmashort.
-- [ ] Not compared yet: a running game's timing (BUSREQ per row vs CSCP's per line).
+- [x] Running speed (2026-11-14): `print chr$(7);:for i=1 to 30000:next:print chr$(7);`, beep to beep in the
+      recorded audio: Mister 126 39.437 s, the sim 39.437 s (the same to the millisecond), CSCP 38.204 s (the
+      core 3.2 % slower: DMA steal of 5.95 clocks a byte, CSCP overlapping it; HARDWARE_NOTES 11). VRTC-paced games
+      run at CSCP's rate (Galaxian: the same 7-frame step). CPU-bound code is 3.2 % slower than CSCP; which is
+      nearer a real PC-8001 needs a measurement on one (see the WAIT item: the schematic suggests fewer waits).
 - [x] US keyboard layout option (OSD Keyboard = US, sim --kbd-us): identical to CSCP (kbdus). A symbol whose
       SHIFT differs from the held SHIFT waits 50 ms for BASIC to see the new SHIFT (else US ^ @ : were lost).
 - [x] Disk-unit check: with FCh-FFh reading FFh the ROM waits ~2.7 s before BASIC (CSCP, with an 8255
