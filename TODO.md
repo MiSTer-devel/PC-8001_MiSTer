@@ -174,7 +174,9 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
       SHIFT + Caps Lock (a lock). Sim: Tab/Down/Left 254/253/251. Mister 192: Tab, Down, Left, F11, Print Screen
       (254 253 251 247 239) and CAPS (127); pad - and / not sent (KVMS has no names). Main keeps Scroll Lock and Num
       Lock (neither reaches the core), so CAPS is not on them.
-- [ ] Software: hiragana test.
+- [x] Software hiragana: N80SR-BASIC's CONSOLE takes a 5th argument (0-3) into 33h bits 4-5 (ROM 1979h); 1 =
+      hiragana for the kana codes. `console 0,25,0,1,1` then chr$(161-223): identical to CSCP (cscp_suite srhira)
+      and hiragana on Mister 192.
 - [ ] cscp_suite mk2int: the sim counts 585 timer interrupts in 60 frames, CSCP 586 (one digit at x 50-61 y 320).
       Identical in the 2026-11-04 suite; HEAD f7bfa50 already differs (not the keyboard queue). Bisect from 6e07abf.
 - [x] YM2203 busy flag: jt12's lasts 32 FM clocks after a data write; CSCP has none (sropn masks it). Kept: the

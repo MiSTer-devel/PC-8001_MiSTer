@@ -53,6 +53,8 @@ srg_a320m 0C 80 14
 srg_pr2 18 88 00
 srg_off 18 80 02
 EOT
+# hiragana: CONSOLE's 5th argument (bits 4-5 of 33h; 1 = hiragana font for the kana codes)
+MODEL=sr V2=1 $T srhira 1500 'console 0,25,0,1,1\n{WAIT60}for i=161 to 223:print chr$(i);:next\n' || rc=1
 # ALU (34h/35h; tools/sralu_asm.py): set/invert/clear, copy, R->B, B->R and the colour compare
 MODEL=sr V2=1 $T sralu 12000 "$(python3 tools/sralu_asm.py | python3 tools/ml_text.py)" -- --type-rate 6:6 || rc=1
 # YM2203 (tools/sropn_asm.py): timer A interrupts on level 4 over 60 frames, status, SSG register readback
