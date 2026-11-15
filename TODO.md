@@ -231,8 +231,8 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
       and then forced a 33 ms press dropped letters (the next key cut it short). Mister 192: ABCDEFGHIJ and
       AbCdEfGhIj exact with misterkvms-cli type --hold 50; at the default 30 ms hold shifted letters still drop
       (lowercase is fine), so type with --hold 50. The sim leads SHIFT by a frame, so the queue never engages there.
-- [x] Tester zip under 20 MB: releases/PC8001_tester_20261105.zip (2.2 MB; rbf, the 3 boot ROMs, 11 tapes, 9 disks + 7 untested SR disks, README with how to start each). Not in git.
-- [x] Tester zip 20261111: releases/PC8001_tester_20261111.zip (2.4 MB; cb921bb rbf, Pac Land added in 20261105b/c,
+- [x] Tester zip under 20 MB: testers/PC8001_tester_20261105.zip (2.2 MB; rbf, the 3 boot ROMs, 11 tapes, 9 disks + 7 untested SR disks, README with how to start each). Not in git.
+- [x] Tester zip 20261111: testers/PC8001_tester_20261111.zip (2.4 MB; cb921bb rbf, Pac Land added in 20261105b/c,
       README with the new OSD pages and fixes; the SR Game Pack disks 1-3 in place of Untested/). Not in git.
 - [x] sys/ updated to Template_MiSTer e901a9f (2026-11-03; 4b14683): only hps_io.sv changed. Built, timing met,
       boot/OSD/beep checked on Mister 126 (~/dev2/sys-standard.md).
@@ -240,9 +240,9 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
       Caps Lock and the JP kana key), left Alt stays GRPH, in both keyboard modes; Swap Alt/Win moves both to the
       Win keys. Sim: abc{RALT}abc{RALT}abc identical to the same with {CAPS} (abcチコソabc).
       Mister 192 (e940a28, slack 0.256 ns): the same abcチコソabc via KVMS ralt; left Alt+A / Alt+S still GRPH.
-- [x] Tester zip 20261113: releases/PC8001_tester_20261113.zip (2.7 MB; e940a28 rbf: right Alt = KANA, Memory
+- [x] Tester zip 20261113: testers/PC8001_tester_20261113.zip (2.7 MB; e940a28 rbf: right Alt = KANA, Memory
       Image .n80 with 9 images, the tape hint, sys/ update; tapes + Galaxian 1980, Slot Machine, Dig Dug). Not in git.
-- [x] Tester zip 20261114: releases/PC8001_tester_20261114.zip (2.7 MB; bdde72c rbf: SHIFT queue for host
+- [x] Tester zip 20261114: testers/PC8001_tester_20261114.zip (2.7 MB; bdde72c rbf: SHIFT queue for host
       typing, SR row 0Ah keys; README: SR keys, hiragana via CONSOLE, PCG Galaxian (Game Kyojin) disk added and
       played on Mister 126 with the PCG-8100). Not in git.
 - [ ] Public repo.

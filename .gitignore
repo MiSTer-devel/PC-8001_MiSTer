@@ -30,6 +30,7 @@ c5_pin_model_dump.txt
 PLLJ_PLLSPE_INFO.txt
 # simulation
 verilator/obj_dir*/
+verilator/obj_dbg/
 verilator/gen/
 verilator/ghdl_work/
 verilator/out/
@@ -40,8 +41,8 @@ rom/
 rom.zip
 quartus_build.log
 
-# releases keep their cores and boot.rom
-!releases/**/*.rbf
+# releases/ holds the released cores (PC8001_YYYYMMDD.rbf), as in other MiSTer repos
+!releases/*.rbf
 
 # scratch runs and OS / Python droppings
 runs/
@@ -49,6 +50,7 @@ runs/
 __pycache__/
 *.pyc
 
-# tester zips (contain ROMs and games)
-releases/
+# tester zips (contain ROMs and games): never commit
+testers/
+*.zip
 verilator/tb_cmt/obj_dir/
