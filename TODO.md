@@ -251,6 +251,8 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
 - [x] Tester zip 20261114: testers/PC8001_tester_20261114.zip (2.7 MB; bdde72c rbf: SHIFT queue for host
       typing, SR row 0Ah keys; README: SR keys, hiragana via CONSOLE, PCG Galaxian (Game Kyojin) disk added and
       played on Mister 126 with the PCG-8100). Not in git.
+- [x] Tester zip 20261116: testers/PC8001_tester_20261116.zip (2.7 MB; 3d02578 rbf = releases/PC8001_20261116.rbf:
+      tape hint G9000 for the Game Pack 2017 tapes; the 5 tapes and their readme added). Not in git.
 - [ ] Public repo.
 
 ## Open questions (from PLAN.md)
