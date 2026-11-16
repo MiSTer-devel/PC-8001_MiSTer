@@ -13,6 +13,10 @@
 //     Point, Circuit), so it is not shown (rule 25). Nor is a second L for a second block: the monitor stops
 //     the motor well after a block's end (Moon Alien at 5x: 55 bytes into the next block's header), so the
 //     next L would not find that header.
+//     Known tapes: a monitor tape in the table below (its first block's load address, length and 16-bit sum
+//     of the bytes after the header, so the tape's content, not its name) shows TYPE G<start> <ret> once
+//     that block has loaded, as RUN for BASIC. Ishizu's Game Pack 2017 (Galaxy Fly, Space Fighter, Submarine,
+//     Othello, Dot Eater: MON, L, G9000 from its readme); none of the corpus's 44 monitor tapes matches.
 // RUN is not shown when a machine-code block follows the BASIC program: some such programs load it themselves
 // (Kumo Vader, Qix), others need MON, L, Ctrl+B first (Galaxian 1980, Marine Belt, Deep Scan: Neo Kobe's
 // "{cload X mon L}"), and nothing on the tape tells them apart (69 of the 107 BASIC tapes).
@@ -112,6 +116,8 @@ reg [19:0] m_at = 0;
 reg  [1:0] rp = 0;              // record part: 0 colon, 1 length, 2 data, 3 checksum
 reg  [7:0] rlen = 0, rcnt = 0;
 reg        rlast = 0;
+reg [15:0] m_addr = 0;          // first file's load address (monitor)
+reg [15:0] msum = 0;            // sum of the first monitor file's bytes after its header
 
 // the data bytes, a clock late: the reset at the download's start comes first even if its first byte is
 // written on the same clock
@@ -124,7 +130,7 @@ wire       printable = (pd >= 8'h20 && pd < 8'h7F) || pd == 8'h00;
 
 task found_mon;
 	// the 3Ah that confirmed the header is the first record's colon
-	if (!second) begin k1 <= K_MON; f1_start <= m_at; rp <= 1; s <= S_REC; end
+	if (!second) begin k1 <= K_MON; f1_start <= m_at; m_addr <= {mh[1], mh[2]}; msum <= 0; rp <= 1; s <= S_REC; end
 	else begin f2_start <= m_at; f2_mc <= 1; s <= S_DONE; end
 endtask
 
@@ -187,6 +193,7 @@ always @(posedge clk) begin
 			else zeros <= 0;
 		end
 		S_REC: begin
+			msum <= msum + {8'h00, pd};
 			case (rp)
 			2'd0: if (pd == 8'h3A) rp <= 1; else s <= S_DONE;
 			2'd1: begin rlen <= pd; rcnt <= 0; rlast <= pd == 0; rp <= pd == 0 ? 2'd3 : 2'd2; end
@@ -211,10 +218,26 @@ reg        done = 0;            // Return pressed after the second step
 reg        old_tog = 0, old_loaded = 0;
 wire       ret = (ps2_key[10] != old_tog) & ps2_key[9] & (ps2_key[7:0] == 8'h5A);   // Return or keypad Enter
 
+// known monitor tapes: start address
+wire [19:0] f1_len = f1_end - f1_start;
+reg        known;
+reg [15:0] g_addr;
+always @* begin
+	known = 1;
+	case ({m_addr, f1_len, msum})
+	{16'h9000, 20'd7177, 16'hEE58}: g_addr = 16'h9000;   // Galaxy Fly (2017)(Ishizu)
+	{16'h9000, 20'd7141, 16'h1358}: g_addr = 16'h9000;   // Space Fighter (2017)(Ishizu)
+	{16'h9000, 20'd3394, 16'h902C}: g_addr = 16'h9000;   // Submarine (2017)(Ishizu)
+	{16'h9000, 20'd4426, 16'h4E14}: g_addr = 16'h9000;   // Othello (2017)(Ishizu)
+	{16'h9000, 20'd3330, 16'h6FF2}: g_addr = 16'h9000;   // Dot Eater (2017)(Ishizu)
+	default: begin known = 0; g_addr = 0; end
+	endcase
+end
+
 wire       at_start = fresh || position <= f1_start;
 wire       after1 = !fresh && f1_ok && position > f1_end && position <= f2_start + 20'd64;
 wire       step1 = at_start && k1 != K_NONE;
-wire       step2 = after1 && !done && k1 == K_BASIC && !f2_mc;
+wire       step2 = after1 && !done && ((k1 == K_BASIC && !f2_mc) || (k1 == K_MON && known));
 
 always @(posedge clk) begin
 	old_tog <= ps2_key[10];
@@ -229,6 +252,10 @@ assign show = loaded && !motor && (step1 || step2);
 //----------------------------------------------------------------------------
 // What
 //----------------------------------------------------------------------------
+
+function automatic [7:0] hx(input [3:0] v);
+	return v < 4'd10 ? 8'h30 + {4'h0, v} : 8'h37 + {4'h0, v};
+endfunction
 
 function automatic [7:0] nm(input [7:0] c);
 	return c == 8'h00 ? 8'h20 : c;
@@ -253,6 +280,10 @@ always @* begin
 	end
 	else if (step1) begin
 		{t[5], t[6], t[7]} = "MON";  t[9] = 8'h01;  t[11] = "L";  t[13] = 8'h01;
+	end
+	else if (k1 == K_MON) begin
+		t[5] = "G";  t[6] = hx(g_addr[15:12]);  t[7] = hx(g_addr[11:8]);  t[8] = hx(g_addr[7:4]);  t[9] = hx(g_addr[3:0]);
+		t[11] = 8'h01;
 	end
 	else begin
 		{t[5], t[6], t[7]} = "RUN";  t[9] = 8'h01;

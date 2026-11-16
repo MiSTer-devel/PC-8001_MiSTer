@@ -111,6 +111,12 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       Slot Machine (1980) (cload"slot", run): identical to CSCP 300 and 1200 frames after RUN (runs/cmp/slot).
       Dig Dug (1983)(Dempa) (mon, L, G D670 from its .txt; tape_cmp START=D670): its KEY FUNCTION screen identical
       at +300; at +1200 only the flashing RET key differs (red vs white: the flash's phase) (runs/cmp/digdug).
+- [x] Game Pack 2017 (Ishizu; 5 tapes from a tester, 2026-11-15): Galaxy Fly, Space Fighter, Submarine, Othello,
+      Dot Eater, one monitor block each at 9000h (ends as the readme), started with G9000. tools/tape_cmp.sh: all
+      five identical to CSCP 300 and 1200 frames after G9000 (runs/cmp/g17_*). The hint gets a table of known tapes
+      (rtl/tape_hint.sv: first block's address, length, 16-bit sum; none of the corpus's 44 monitor tapes
+      matches), which shows TYPE G9000 once the block has loaded, gone after Return. Sim --overlay: Dot Eater and
+      Galaxy Fly show MON L, then G9000; Dot Eater plays after SPACE. Not checked on hardware (126 was in use).
 
 ## 3. Disk unit (PC-80S31)
 - [x] rtl/pc80s31.sv (the PC-6001 core's pc6031.sv: Z80 + disk.rom, 16 KB, uPD765, two cross-wired 8255s) at

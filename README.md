@@ -101,7 +101,10 @@ is stopped, what to type next, read from the tape itself as it loads (rtl/tape_h
 header) shows `TYPE CLOAD"name" ↵` at its start and `TYPE RUN ↵` once the program has loaded, until Return (not when a
 machine-code block follows it: some such programs load it themselves, others need MON and L first); a
 machine-code tape (monitor W records) shows `TYPE MON ↵ L ↵`. The start address after L is not on the tape, so
-it is not shown (the game's instructions give it). Nothing is shown once the program has been started, for a tape
+it is not shown (the game's instructions give it), except for the tapes in a small table of known tapes,
+recognised by their first block's address, length and checksum (not the file name): these show `TYPE G9000 ↵`
+once the block has loaded, until Return (Ishizu's Game Pack 2017: Galaxy Fly, Space Fighter, Submarine,
+Othello, Dot Eater). Nothing is shown once the program has been started, for a tape
 whose first block is in neither format (Pac Land's sides B-D), or with Tape overlay Off. The hint is drawn with
 the machine's own font, so names keep their case (`cload"river"`). Model and Mode are not hinted (Pac Land wants
 the SR in N80SR mode: the tape gives no sign of it).
