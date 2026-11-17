@@ -149,6 +149,9 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       then resets (am_*); PCG left manual (shared PCG / non-PCG tapes). pc88 tapes show NEEDS A PC-8801.
       tb_hint: 1826 checks (incl. machine per tape), 0 failed. The switch itself is not simulated (no hps_io in
       the sim); check on hardware.
+- [x] Tester zip 20261118: testers/PC8001_tester_20261118.zip (125fa0a rbf = releases/PC8001_20261118.rbf: mkII
+      switch, NEEDS A PC-8801; README: the mkII list, PC-8801 TAPES write-up for Danjuro). Not in git. Not
+      checked on hardware.
 - [ ] Disk hints for the type-in pack: of 56 new disks, ~20 boot by themselves (raw loaders), most N-BASIC disks
       autorun; a few stop at Ok (Dragon'N'Spirit: run"DRASPI"; textgame, Basic Program Shu: several programs).
 
