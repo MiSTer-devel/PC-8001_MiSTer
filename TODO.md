@@ -132,6 +132,9 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       about 12 without notes (Blue Venus, Ghost Gather, Haunted Cave, Pyon Pyon...) stop with Disk BASIC Feature /
       Syntax error on BASIC 1.1, the mkII's 1.3 and Disk BASIC alike: most likely PC-8801 listings; their lines
       stay (flag fails), and the tester README lists them. Tape OSD takes .cas (raw, as .cmt).
+- [x] Tester zip 20261117: testers/PC8001_tester_20261117.zip (3.4 MB; bd59f68 rbf = releases/PC8001_20261117.rbf:
+      the tape hint database; Tapes/Type-ins (Danjuro) with the pack's tapes and notes, README TYPE-INS list
+      generated from tools/tape_db.txt and the CSCP runs). Not in git. Not checked on hardware.
 - [ ] Disk hints for the type-in pack: of 56 new disks, ~20 boot by themselves (raw loaders), most N-BASIC disks
       autorun; a few stop at Ok (Dragon'N'Spirit: run"DRASPI"; textgame, Basic Program Shu: several programs).
 
