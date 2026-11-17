@@ -117,6 +117,23 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       (rtl/tape_hint.sv: first block's address, length, 16-bit sum; none of the corpus's 44 monitor tapes
       matches), which shows TYPE G9000 once the block has loaded, gone after Return. Sim --overlay: Dot Eater and
       Galaxy Fly show MON L, then G9000; Dot Eater plays after SPACE. Not checked on hardware (126 was in use).
+- [x] Tape hint database (Danjuro's type-in pack, 2026-11-16: 176 tapes, 152 new; 149 disks, 56 new): the hint
+      table is now tools/tape_db.txt (titles, their tapes in order, what to type past each file, from the notes
+      beside the tapes; PC-8801 notes' MON R / load"cas: are MON L / CLOAD here), turned into rtl/tape_db.svh by
+      tools/tape_db.py: 115 tapes, 249 lines. rtl/tape_hint.sv follows up to 8 files, finds a tape by its data's
+      length and CRC-16 (ROM, one entry a clock after the download), and shows the zone's lines one after another,
+      each until its Returns / Ctrl+Bs. Unknown tapes keep the old hint. verilator/tb_hint (tape_hint alone, script
+      from tools/tape_db.py --tb): 1397 checks over the pack and refs/software, 0 failed; no corpus tape collides
+      with the table. Full sim (--hint-log, new --swap-tape / --tape-after-motor): Galaxian (I-O) loader -> data
+      tape, Phantom IV (GD000), Leopard (CTRL+B, then the BASIC tape) show the right sequence and start.
+      CSCP (scripts from tools/tape_db.py --cscp; CSCP CLI got {CTRL}x): about 100 of the pack's titles reach their
+      title or game on the PC-8001 with the hinted steps; Kurukuru needs the mkII in Mode N, Tree the mkII. 18 noted
+      titles (Space Alien, Mutant, the MON R group: Dark World, Fightan, Snake World, The Search, 3D HSTT...) and
+      about 12 without notes (Blue Venus, Ghost Gather, Haunted Cave, Pyon Pyon...) stop with Disk BASIC Feature /
+      Syntax error on BASIC 1.1, the mkII's 1.3 and Disk BASIC alike: most likely PC-8801 listings; their lines
+      stay (flag fails), and the tester README lists them. Tape OSD takes .cas (raw, as .cmt).
+- [ ] Disk hints for the type-in pack: of 56 new disks, ~20 boot by themselves (raw loaders), most N-BASIC disks
+      autorun; a few stop at Ok (Dragon'N'Spirit: run"DRASPI"; textgame, Basic Program Shu: several programs).
 
 ## 3. Disk unit (PC-80S31)
 - [x] rtl/pc80s31.sv (the PC-6001 core's pc6031.sv: Z80 + disk.rom, 16 KB, uPD765, two cross-wired 8255s) at

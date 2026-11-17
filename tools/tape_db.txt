@@ -1,0 +1,357 @@
+# Tape hint database: what to type for tapes whose next steps are not on the tape (rtl/tape_hint.sv).
+# tools/tape_db.py turns it into rtl/tape_db.svh (the table the core uses) and into test scripts.
+#
+# title: NAME [pcg] [mk2|mk2n] [fails]   one title; pcg / mk2 / mk2n: needs the PCG-8100 / the PC-8001mkII
+#                              (N80 mode / Mode N); fails: does not run on any PC-8001 model in CSCP either
+#                              (BASIC 1.1 to 1.3, Disk BASIC: Syntax error / Disk BASIC Feature, most likely
+#                              PC-8801 listings), the lines are what its notes say
+# tape: FILE                   one of the title's tapes, in the order they are used (path under the pack)
+#   Z: STEP ; STEP ...         what to type once the tape has played past its Z-th file (0 = at its start).
+#                              A zone not listed keeps the core's own hint (CLOAD"name" / MON L at the start,
+#                              RUN after a BASIC program with nothing after it); "-" shows nothing.
+# play: KEYS                   test only: keys that start the game once the last step is typed
+# wait: N                      test only: N more frames before the screenshots (a program that loads more itself)
+# Keys as in sim --type / CSCP --type: \n = Return, {CTRL}B = Ctrl+B.
+# The hint shows the steps of a zone on one line when they fit ("TYPE MON ↵ L ↵"), else one after another,
+# each until its Returns (or its Ctrl+B) have been pressed.
+# Sources: the readme / START.txt beside each tape (PC-8801 notes say MON R and load"cas:, which on the
+# PC-8001 are MON L and CLOAD).
+
+# --- machine code: MON, L, G ---------------------------------------------------------------------------
+title: Galaxy Fly (Ishizu)
+tape: Galaxy Fly.cmt
+  1: G9000\n
+play: {WAIT60}
+title: Space Fighter (Ishizu)
+tape: Space Fighter.cmt
+  1: G9000\n
+play: {WAIT60}
+title: Submarine (Ishizu)
+tape: Submarine.cmt
+  1: G9000\n
+play: {WAIT60}
+title: Othello (Ishizu)
+tape: Othello.cmt
+  1: G9000\n
+play: {WAIT60}
+title: Dot Eater (Ishizu)
+tape: Dot Eater.cmt
+  1: G9000\n
+play: {WAIT60}
+title: 3D Battle Maze (PiO)
+tape: 3D Battle Maze (PiO).cmt
+  1: GC930\n
+play: {WAIT60}\n
+title: 60 Second Game (PiO) fails
+tape: 60 Second Game (PiO).cmt
+  1: GA000\n
+title: Alien Planet (PiO)
+tape: Alien Planet (PiO).t88
+  1: G8C00\n
+title: Amoeba Attack (Technopolis)
+tape: Amoeba Attack (Technopolis).t88
+  1: GDE84\n
+title: Asteroid Outlaw (PiO)
+tape: Asteroid Outlaw (PiO).t88
+  1: GC000\n
+title: Beggar Snake (I-O)
+tape: Beggar Snake (I-O).t88
+  1: GDA00\n
+title: Broken (PiO) fails
+tape: Broken (PiO).t88
+  1: GCA00\n
+title: Drive My PC (Popcom)
+tape: Drive My PC (Popcom).t88
+  1: GD300\n
+title: Marine War (PiO)
+tape: Marine War (Bugfixed) (PiO).t88
+  1: GE518\n
+title: Phantom IV (Mycomp BASIC)
+tape: Phantom IV (Mycomp BASIC).t88
+  1: GD000\n
+title: Warp Alien (PiO)
+tape: Warp Alien (PiO).t88
+  1: GC800\n
+title: Flag World (PiO)
+tape: Flag World (PiO).cmt
+  1: GD000\n
+title: The Dust World (PiO) pcg
+tape: The Dust World (PiO).t88
+  1: G9000\n
+title: Game of Miss Ryoko (PiO) pcg
+tape: Game of Miss Ryoko (PiO).t88
+  1: GC920\n
+title: Ghost Land (PiO) pcg
+tape: Ghost Land (PiO).t88
+  0: CLEAR100,&H81FF\n ; MON\n L\n
+  1: GD2E0\n
+title: Fireman (PC Game Kessaku Senshu)
+tape: Fireman (PC Game Kessaku Senshu).t88
+  0: CLEAR300,&HC200\n ; MON\n L\n
+  1: GC500\n
+title: Fireman II (PC Game Kessaku Senshu)
+tape: Fireman II (PC Game Kessaku Senshu).t88
+  0: CLEAR300,&HC200\n ; MON\n L\n
+  1: GC500\n
+title: Kurukuru (Popcom) mk2n
+tape: Kurukuru (Popcom)/Kurukuru Data 1.t88
+  1: -
+tape: Kurukuru (Popcom)/Kurukuru Data 2 (Bugfixed).t88
+  0: L\n
+  1: GE5B4\n
+
+# --- BASIC and machine code on one tape: CLOAD, MON L, Ctrl+B RUN ----------------------------------------
+title: Space Alien (MyComp BASIC) fails
+tape: Space Alien (MyComp BASIC).t88
+  1: MON\n L\n
+  2: {CTRL}B RUN\n
+title: Punch! Punch! (MyComp BASIC)
+tape: Punch! Punch! (MyComp BASIC).t88
+  1: MON\n L\n
+  2: {CTRL}B RUN\n
+title: Mikawashima Alien (PiO)
+tape: Mikawashima Alien (PiO).t88
+  1: MON\n L\n
+  2: {CTRL}B RUN\n
+title: Bon Bon (Konputa) (I-O) fails
+tape: Bon Bon (Konputa) (I-O).t88
+  1: MON\n L\n
+  2: {CTRL}B RUN\n
+title: Rocket Bomb (Konputa)
+tape: Rocket Bomb (Konputa).t88
+  1: MON\n L\n
+  2: {CTRL}B RUN\n
+title: PCG Digital Invader pcg
+tape: PCG Digital Invader.CMT
+  1: MON\n L\n
+  2: {CTRL}B RUN\n
+title: Hander (PiO)
+tape: Hander (PiO).t88
+  0: CLEAR300,&HB2FF\n ; CLOAD"HD"\n
+  1: MON\n L\n
+  2: {CTRL}B RUN\n
+title: Dark World (I-O) fails
+tape: Dark World (Bugfixed) (I-O).cmt
+  1: {CTRL}B ; CLOAD"DW"\n
+  2: RUN\n
+title: Monster House (Konputa) (I-O) fails
+tape: Monster House (Konputa) (I-O).t88
+  1: {CTRL}B ; CLOAD"NO1"\n
+  2: RUN\n
+  3: RUN\n
+title: Random Walker Fireman (PC Game Kessaku Senshu)
+tape: Random Walker Fireman (PC Game Kessaku Senshu).t88
+  0: CLEAR300,&HC500\n ; CLOAD"RW"\n
+  1: RUN\n
+play: {WAIT600}{F1}
+title: Kumo Vader (MyComp BASIC)
+tape: Kumo Vader (MyComp BASIC).cmt
+  1: RUN\n
+title: Stack Invader (MyComp BASIC)
+tape: Stack Invader (MyComp BASIC).cmt
+  1: RUN\n
+title: Jack Tiger (IO)
+tape: Jack Tigher (IO).cmt
+  1: RUN\n
+title: PCG-Jong pcg
+tape: PCG-Jong.cmt
+  1: RUN\n
+title: PC-Jong Mk2 (Konputa) fails
+tape: PC-Jong Mk2 (Konputa).t88
+  1: RUN\n
+  2: -
+# no notes: RUN loads the machine code itself (found in CSCP; MON L Ctrl+B RUN also works for most)
+title: Guston (PiO)
+tape: Guston (PiO).t88
+  1: RUN\n
+title: Multifighter (Popcom)
+tape: Multifighter (Popcom).t88
+  1: RUN\n
+title: Octopus (PC Game Kessaku Senshu)
+tape: Octopus (PC Game Kessaku Senshu).t88
+  1: RUN\n
+play: {WAIT600}{F1}
+title: Shinsetsu Natsunojin Random Walker Fireman (PC Game Kessaku Senshu)
+tape: Shinsetsu Natsunojin Random Walker Fireman (PC Game Kessaku Senshu).t88
+  1: RUN\n
+play: {WAIT600}{F1}
+
+# --- a BASIC loader tape and a machine-code tape: CLOAD, change tapes, MON L, Ctrl+B RUN -----------------
+title: Galaxian (I-O)
+tape: Galaxian (I-O)/Galaxian Loader.t88
+  1: -
+tape: Galaxian (I-O)/Galaxian Data.t88
+  1: {CTRL}B RUN\n
+title: PCG Galaxian (I-O) pcg
+tape: PCG Galaxian (I-O)/PCG Galaxian Loader.t88
+  1: -
+tape: PCG Galaxian (I-O)/PCG Galaxian Data.t88
+  1: {CTRL}B RUN\n
+title: Alien Hunter (Popcom) fails
+tape: Alien Hunter (Popcom)/Alien Hunter Loader.t88
+  1: -
+tape: Alien Hunter (Popcom)/Alien Hunter Data.t88
+  1: {CTRL}B RUN\n
+title: Alien Town (PiO)
+tape: Alien Town (PiO)/Alien Town Loader.t88
+  1: -
+tape: Alien Town (PiO)/Alien Town Data.t88
+  1: {CTRL}B RUN\n
+title: PCG Alien Town (PiO) pcg
+tape: PCG Alien Town (PiO)/PCG Alien Town Loader.t88
+  1: -
+tape: PCG Alien Town (PiO)/PCG Alien Town Data.t88
+  1: {CTRL}B RUN\n
+title: Attack Z80 (PiO)
+tape: Attack Z80 (PiO)/Attack Z80 Loader.t88
+  1: -
+tape: Attack Z80 (PiO)/Attack Z80 Data.t88
+  1: {CTRL}B RUN\n
+title: Bubble Game (Popcom) fails
+tape: Bubble Game (Popcom)/Bubble Game Loader.t88
+  1: -
+tape: Bubble Game (Popcom)/Bubble Game Data.t88
+  1: {CTRL}B RUN\n
+title: Candy Candy II (PiO) fails
+tape: Candy Candy II (PiO)/Candy Candy II Loader.t88
+  1: -
+tape: Candy Candy II (PiO)/Candy Candy II Data.t88
+  1: {CTRL}B RUN\n
+title: Death Fight (PiO)
+tape: Death Fight (PiO)/Death Fight Loader.t88
+  1: -
+tape: Death Fight (PiO)/Death Fight Data.t88
+  1: {CTRL}B RUN\n
+title: Double Density (PiO) pcg
+tape: Double Density (PiO)/Double Density Loader.t88
+  1: -
+tape: Double Density (PiO)/Double Density Data.t88
+  1: {CTRL}B RUN\n
+title: Ghost House (Popcom)
+tape: Ghost House (Popcom)/Ghost House Loader.t88
+  1: -
+tape: Ghost House (Popcom)/Ghost House Data.t88
+  1: {CTRL}B RUN\n
+title: Jigoku no Mokushiroku (I-O)
+tape: Jigoku no Mokushiroku (I-O)/Jigoku Loader.t88
+  1: -
+tape: Jigoku no Mokushiroku (I-O)/Jigoku Data.t88
+  1: {CTRL}B RUN\n
+title: Jumping Mouse (PiO)
+tape: Jumping Mouse (PiO)/JumpMouse Loader.t88
+  1: -
+tape: Jumping Mouse (PiO)/JumpMouse Data.t88
+  1: {CTRL}B RUN\n
+title: Lunar City SOS (I-O)
+tape: Lunar City SOS (I-O)/Lunar Loader.t88
+  1: -
+tape: Lunar City SOS (I-O)/Lunar Data.t88
+  1: {CTRL}B RUN\n
+title: PCG Lunar City SOS (I-O) pcg
+tape: PCG Lunar City SOS (I-O)/PCG Lunar Loader.t88
+  1: -
+tape: PCG Lunar City SOS (I-O)/PCG Lunar Data.t88
+  1: {CTRL}B RUN\n
+title: Lunar Rescue (Technopolis)
+tape: Lunar Rescue (Technopolis)/Lunar Rescue Loader.t88
+  1: -
+tape: Lunar Rescue (Technopolis)/Lunar Rescue Data.t88
+  1: {CTRL}B RUN\n
+title: Marine Alien (I-O)
+tape: Marine Alien (I-O)/Marine Loader.t88
+  1: -
+tape: Marine Alien (I-O)/Marine Data.t88
+  1: {CTRL}B RUN\n
+title: Monster Revenge (PiO)
+tape: Monster Revenge (PiO)/Monster Revenge Loader.t88
+  1: -
+tape: Monster Revenge (PiO)/Monster Revenge Data.t88
+  1: {CTRL}B RUN\n
+title: Parish (PiO) fails
+tape: Parish (PiO)/Parish Loader.cmt
+  1: -
+tape: Parish (PiO)/Parish Data.cmt
+  1: {CTRL}B RUN\n
+title: PC-Comp (PiO)
+tape: PC-Comp (PiO)/PC-Comp Loader.t88
+  1: -
+tape: PC-Comp (PiO)/PC-Comp Data.t88
+  1: {CTRL}B RUN\n
+title: Pom Pom (PiO) fails
+tape: Pom Pom (PiO)/Pom Pom Loader.t88
+  1: -
+tape: Pom Pom (PiO)/Pom Pom Data.t88
+  1: {CTRL}B RUN\n
+title: Puck Man (I-O)
+tape: Puck Man (I-O)/Puck Man Loader.t88
+  1: -
+tape: Puck Man (I-O)/Puck Man Data.t88
+  1: {CTRL}B RUN\n
+title: Star Fire (I-O)
+tape: Star Fire (I-O)/Star Fire Loader.t88
+  1: -
+tape: Star Fire (I-O)/Star Fire Data.t88
+  1: {CTRL}B RUN\n
+title: Tank (Technopolis)
+tape: Tank (Technopolis)/Tank Loader.t88
+  1: -
+tape: Tank (Technopolis)/Tank Data.t88
+  1: {CTRL}B RUN\n
+title: Urusei Yatsura Game (PiO)
+tape: Urusei Yatsura Game (PiO)/Urusei Yatsura Loader.t88
+  1: -
+tape: Urusei Yatsura Game (PiO)/Urusei Yatsura Data.t88
+  1: {CTRL}B RUN\n
+title: PCG Urusei Yatsura Game (PiO) pcg
+tape: PCG Urusei Yatsura Game (PiO)/PCG Urusei Yatsura Loader.t88
+  1: -
+tape: PCG Urusei Yatsura Game (PiO)/PCG Urusei Yatsura Data.t88
+  1: {CTRL}B RUN\n
+title: Warpman (Popcom)
+tape: Warpman (Popcom)/Warpman Loader.t88
+  1: -
+tape: Warpman (Popcom)/Warpman Data.t88
+  1: {CTRL}B RUN\n
+title: Space Trip (I-O)
+tape: Space Trip (I-O)/1- Space Trip Loader.t88
+  1: -
+tape: Space Trip (I-O)/4- Space Trip Data.t88
+  1: {CTRL}B RUN\n
+title: PCG Space Trip (I-O) pcg
+tape: Space Trip (I-O)/2- (For PCG) - Space Trip Loader 2.t88
+  1: -
+tape: Space Trip (I-O)/3- (For PCG)- Space Trip PCG Data 3.t88
+  1: {CTRL}B RUN\n
+
+# --- the machine-code tape first: MON L, Ctrl+B, then the BASIC tape: CLOAD, RUN ---------------------------
+title: Leopard (Popcom)
+tape: Leopard (Popcom)/Leopard Data.t88
+  1: {CTRL}B
+tape: Leopard (Popcom)/Leopard Loader.t88
+title: Mutant (Popcom) fails
+tape: Mutant (Popcom)/1-Mutant Data.t88
+  1: {CTRL}B
+tape: Mutant (Popcom)/2-Mutant Basic.t88
+title: 3D High Speed Table Tennis (I-O) fails
+tape: 3D High Speed Table Tennis (I-O)/3D HSTT Data.t88
+  1: {CTRL}B
+tape: 3D High Speed Table Tennis (I-O)/3D HSTT Loader.t88
+title: Fightan (PiO) fails
+tape: Fightan (PiO)/Fightan Data.t88
+  1: {CTRL}B
+tape: Fightan (PiO)/Fightan Loader.t88
+title: Snake World (I-O) fails
+tape: Snake World (I-O)/Snake World Data.cmt
+  1: {CTRL}B
+tape: Snake World (I-O)/Snake World Loader.cmt
+title: The Search (I-O) fails
+tape: The Search (I-O)/The Search Data.t88
+  0: CLEAR,&H88FF\n ; MON\n L\n
+  1: {CTRL}B
+tape: The Search (I-O)/The Search Program.t88
+title: The Prize (I-O) fails
+tape: The Prize (I-O)/The Prize Loader.cmt
+  1: -
+tape: The Prize (I-O)/The Prize Data.cmt
+  0: RUN\n
+  1: -

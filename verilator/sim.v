@@ -36,6 +36,8 @@ module top
    output        tape_turbo_on /*verilator public_flat*/,
    output [19:0] tape_position /*verilator public_flat*/,
    output [19:0] tape_length /*verilator public_flat*/,
+   output        hint_show /*verilator public_flat*/,
+   output [175:0] hint_text /*verilator public_flat*/,
 
    input         ioctl_download,
    input   [7:0] ioctl_index,
@@ -112,8 +114,6 @@ pc8001 pc8001
 );
 
 // The tape overlay, as PC8001.sv (tape_hint, tape_status, tape_overlay; 5x turbo)
-wire         hint_show;
-wire [175:0] hint_text;
 wire [218:0] ts_word;
 wire         ts_req, ts_ack;
 wire  [23:0] rgb_ov;

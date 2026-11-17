@@ -54,3 +54,4 @@ __pycache__/
 testers/
 *.zip
 verilator/tb_cmt/obj_dir/
+verilator/tb_hint/obj_dir/

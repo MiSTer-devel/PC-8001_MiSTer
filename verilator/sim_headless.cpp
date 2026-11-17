@@ -55,6 +55,7 @@ struct Options {
     bool        v2 = false;               // --v2: the SR's N80SR mode
     bool        kbd_us = false;
     bool        overlay = false;          // --overlay: the tape overlay and next-step hint
+    bool        hint_log = false;         // --hint-log: print the next-step hint each time it changes
     std::set<uint32_t> resets;            // --reset-at FRAME
     std::string wav_file;                 // --wav
     std::string disk_rom;                 // DIR/disk.rom: the PC-80S31's firmware at 6800h of boot.rom
@@ -62,6 +63,8 @@ struct Options {
     std::string disk_file[2];             // --disk FILE / --disk2 FILE: a .d88 mounted as S0 / S1
     std::string disk_out;                 // --disk-out FILE: the image as the drive left it
     std::multimap<uint32_t, std::pair<int, std::string>> swaps; // --swap-disk[2] FRAME:FILE: mount before FRAME
+    std::multimap<uint32_t, std::string> tape_swaps;           // --swap-tape FRAME:FILE: mount a tape at FRAME
+    std::map<uint32_t, std::string> tape_after;                // --tape-after-motor N:FILE: 10 frames after stop N
     std::string tape_file;                // --tape FILE: .cmt / .t88 through ioctl index 1 (.t88: 41h)
     uint32_t    n80_frame = 0;            // --n80 FRAME:FILE: a .n80 memory image (OSD F3, ioctl index 3) at FRAME
     std::string n80_file;
@@ -88,6 +91,7 @@ static void usage()
 "                         kanji1.rom); --n-mode N mode, --v2 N80SR mode (else N80 mode)\n"
 "  --kbd-us               keyboard: US symbols (OSD Keyboard = US)\n"
 "  --overlay              draw the tape overlay (status bar, next-step hint) as the core does\n"
+"  --hint-log             print the next-step hint each time it changes ([hint] frame N: TYPE ... <ret>)\n"
 "  --ext-rom FILE         expansion ROM at 6000h (OSD Expansion ROM)\n"
 "  --printer FILE         write the bytes sent to the printer to FILE\n"
 "  --type FRAME:TEXT      type TEXT from FRAME; \\n or {RETURN}, {WAITn}, {CTRL+B} ...\n"
@@ -106,6 +110,8 @@ static void usage()
 "  --disk2 FILE           mount a .d88 in drive 2 (OSD S1)\n"
 "  --swap-disk F:FILE     mount FILE in drive 1 before frame F (repeatable); --swap-disk2 for drive 2\n"
 "  --tape FILE            load a .cmt / .t88 tape image (OSD Tape); --tape-turbo: OSD Tape speed 5x\n"
+"  --swap-tape F:FILE     mount another tape at frame F, as choosing it in OSD Tape (repeatable)\n"
+"  --tape-after-motor N:FILE  mount FILE 10 frames after the tape motor's N-th stop (1 = first; repeatable)\n"
 "  --n80 FRAME:FILE       load a .n80 memory image at FRAME (OSD Memory Image): it starts at once\n"
 "  --after-motor TEXT     type TEXT 20 frames after the tape motor stops (repeatable: one per stop, in order)\n"
 "  --stop-after-motor N   stop once the motor has stopped (after every --after-motor text) and stayed off\n"
@@ -169,6 +175,7 @@ static bool parse_args(int argc, char **argv, Options &o)
         else if (a == "--mk2-dir") o.mk2_dir = next();
         else if (a == "--kbd-us") o.kbd_us = true;
         else if (a == "--overlay") o.overlay = true;
+        else if (a == "--hint-log") o.hint_log = true;
         else if (a == "--ext-rom") o.ext_rom = next();
         else if (a == "--printer") o.printer = next();
         else if (a == "--dump-ram") o.dump_ram = next();
@@ -188,6 +195,14 @@ static bool parse_args(int argc, char **argv, Options &o)
         else if (a == "--swap-disk" || a == "--swap-disk2") {
             uint32_t f; if (!pair("FRAME:FILE", f, rest)) return false;
             o.swaps.insert({f, {a == "--swap-disk2" ? 1 : 0, rest}});
+        }
+        else if (a == "--swap-tape") {
+            uint32_t f; if (!pair("FRAME:FILE", f, rest)) return false;
+            o.tape_swaps.insert({f, rest});
+        }
+        else if (a == "--tape-after-motor") {
+            uint32_t n; if (!pair("N:FILE", n, rest)) return false;
+            o.tape_after[n] = rest;
         }
         else if (a == "--tape-turbo") o.tape_turbo = true;
         else if (a == "--after-motor") o.after_motor.push_back(next());
@@ -227,6 +242,8 @@ private:
     double    wav_next = 0;
     bool      prev_motor = false, done = false;
     size_t    motor_stops = 0;
+    std::multimap<uint32_t, std::string> tswaps;   // tapes to mount: frame -> file
+    std::string last_hint;
     uint32_t  motor_off_frame = 0, motor_on_frames = 0;
     std::vector<uint8_t> disks[2];        // the disk images (hps_io S0, S1): 512-byte blocks
     int       sd_state = 0;               // 0 idle, 1 read block, 2 write block
@@ -416,6 +433,8 @@ void Sim::clock()
                                 (unsigned)top->tape_position, (unsigned)top->tape_length);
         if (!prev_motor) {
             if (motor_stops < opt.after_motor.size()) schedule_text(frame + 20, opt.after_motor[motor_stops]);
+            auto ta = opt.tape_after.find((uint32_t)motor_stops + 1);
+            if (ta != opt.tape_after.end()) tswaps.insert({frame + 10, ta->second});
             motor_stops++;
             motor_off_frame = frame;
         }
@@ -452,6 +471,19 @@ void Sim::end_frame()
                 frame, cycle / CLK_HZ, fb_w, fb_h, last_pc, h);
     fb.clear(); fb_h = 0; line.clear();
     if (top->tape_motor) motor_on_frames++;
+    if (opt.hint_log) {
+        std::string h;
+        if (top->hint_show) {
+            for (int i = 0; i < 22; i++) {
+                int bit = 175 - 8 * i - 7;
+                uint8_t c = (top->hint_text[bit / 32] >> (bit % 32)) & 0xFF;
+                if (bit % 32 > 24) c = (uint8_t)(((uint64_t)top->hint_text[bit / 32 + 1] << 32 | top->hint_text[bit / 32]) >> (bit % 32));
+                h += c == 1 ? std::string("<ret>") : std::string(1, (char)c);
+            }
+            while (!h.empty() && h.back() == ' ') h.pop_back();
+        }
+        if (h != last_hint) { printf("[hint] frame %u: %s\n", frame, h.empty() ? "(none)" : h.c_str()); fflush(stdout); last_hint = h; }
+    }
     if (opt.tape_end_stop && motor_stops && motor_stops >= opt.after_motor.size() && !top->tape_motor &&
         frame - motor_off_frame >= opt.tape_end_stop) done = true;
     frame++;
@@ -605,10 +637,10 @@ int Sim::run()
     if (!opt.tape_file.empty()) {
         std::vector<uint8_t> t;
         if (!read_file(opt.tape_file, t)) { fprintf(stderr, "cannot read tape %s\n", opt.tape_file.c_str()); return 2; }
-        // Main puts the extension's place in the F1 list ("CMTT88") in index bits 7:6
+        // Main puts the extension's place in the F1 list ("CMTT88CAS") in index bits 7:6
         std::string ext = opt.tape_file.substr(opt.tape_file.find_last_of('.') + 1);
         for (auto &c : ext) c = (char)tolower((unsigned char)c);
-        ioctl_load(0, t, ext == "t88" ? 0x41 : 0x01);
+        ioctl_load(0, t, ext == "t88" ? 0x41 : ext == "cas" ? 0x81 : 0x01);
         if (!opt.quiet) fprintf(stderr, "[sim] tape: '%s', %zu bytes\n", opt.tape_file.c_str(), t.size());
     }
     for (auto &t : opt.types) schedule_text(t.frame, t.text);
@@ -617,8 +649,19 @@ int Sim::run()
 
     std::vector<uint8_t> n80;
     if (!opt.n80_file.empty() && !read_file(opt.n80_file, n80)) { fprintf(stderr, "cannot read %s\n", opt.n80_file.c_str()); return 2; }
+    tswaps = opt.tape_swaps;
     while (frame <= opt.stop_frame && !done && !Verilated::gotFinish()) {
         clock();
+        if (!tswaps.empty() && frame >= tswaps.begin()->first) {
+            std::string f = tswaps.begin()->second;
+            tswaps.erase(tswaps.begin());
+            std::vector<uint8_t> t;
+            if (!read_file(f, t)) { fprintf(stderr, "cannot read tape %s\n", f.c_str()); return 2; }
+            std::string ext = f.substr(f.find_last_of('.') + 1);
+            for (auto &c : ext) c = (char)tolower((unsigned char)c);
+            ioctl_load(0, t, ext == "t88" ? 0x41 : ext == "cas" ? 0x81 : 0x01);
+            if (!opt.quiet) fprintf(stderr, "[sim] frame %u: tape '%s' mounted, %zu bytes\n", frame, f.c_str(), t.size());
+        }
         if (!n80.empty() && frame >= opt.n80_frame) {
             ioctl_load(0, n80, 3);
             if (!opt.quiet) fprintf(stderr, "[sim] memory image: '%s', %zu bytes at frame %u\n", opt.n80_file.c_str(), n80.size(), frame);

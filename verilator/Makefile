@@ -60,7 +60,7 @@ $(GEN)/t80s.v: $(WORK)/.analysed fix_port_aliases.py
 
 netlist: $(GEN_V)
 
-$(HL_EXE): $(V_SRC) sim_headless.cpp ps2_keys.h Makefile
+$(HL_EXE): $(V_SRC) $(RTL)/tape_db.svh sim_headless.cpp ps2_keys.h Makefile
 	$V -cc $(V_OPT) --exe --build -j 0 --Mdir $(HL_DIR) --top-module top \
 		-CFLAGS "$(CXXFLAGS)" $(V_SRC) sim_headless.cpp -o Vtop
 

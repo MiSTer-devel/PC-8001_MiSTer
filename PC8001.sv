@@ -64,7 +64,7 @@ localparam CONF_STR = {
 	"SC0,D88,Drive 1;",
 	"SC1,D88,Drive 2;",
 	// The whole image is loaded into the core; not remembered (F, not FC), so a core start has no tape.
-	"F1,CMTT88,Tape;",
+	"F1,CMTT88CAS,Tape;",
 	// a memory image from 8000h, started at once from FF3Dh as CSCP does; for the machine as it is (BASIC up)
 	"F3,N80,Memory Image;",
 	"F2,ROMBIN,Expansion ROM;",
