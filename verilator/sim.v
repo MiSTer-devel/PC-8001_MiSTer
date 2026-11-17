@@ -38,6 +38,7 @@ module top
    output [19:0] tape_length /*verilator public_flat*/,
    output        hint_show /*verilator public_flat*/,
    output [175:0] hint_text /*verilator public_flat*/,
+   output  [1:0] hint_machine /*verilator public_flat*/,  // the known tape's machine (PC8001.sv switches to it)
 
    input         ioctl_download,
    input   [7:0] ioctl_index,
@@ -121,7 +122,8 @@ tape_hint tape_hint
 (
    .clk(clk_sys), .ioctl_download(ioctl_download), .ioctl_index(ioctl_index), .ioctl_wr(ioctl_wr),
    .ioctl_addr(ioctl_addr), .ioctl_dout(ioctl_dout), .loaded(tape_loaded), .motor(tape_motor),
-   .rewind(tape_rewind), .position(tape_position), .ps2_key(ps2_key), .show(hint_show), .text(hint_text)
+   .rewind(tape_rewind), .position(tape_position), .ps2_key(ps2_key), .show(hint_show), .text(hint_text),
+   .machine(hint_machine), .machine_v()
 );
 tape_status tape_status
 (

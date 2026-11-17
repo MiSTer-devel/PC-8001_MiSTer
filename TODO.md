@@ -135,6 +135,20 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
 - [x] Tester zip 20261117: testers/PC8001_tester_20261117.zip (3.4 MB; bd59f68 rbf = releases/PC8001_20261117.rbf:
       the tape hint database; Tapes/Type-ins (Danjuro) with the pack's tapes and notes, README TYPE-INS list
       generated from tools/tape_db.txt and the CSCP runs). Not in git. Not checked on hardware.
+- [x] Type-in machines (2026-11-17): the 30 tapes that failed everywhere were re-run in CSCP. 18 are mkII
+      programs (N-80 BASIC: CMD SCREEN... gives Disk BASIC Feature on 1.1; only Mode N had been tried): Broken,
+      Space Alien, Bon Bon, Monster House (RUN again after part 2), PC-Jong Mk2, Alien Hunter, Bubble Game,
+      Candy Candy II, Parish, Pom Pom, Mutant, Ghost Gather, Hae Uchiotoshi, Irregular Verbs, Pyon Pyon, Tree,
+      GuGuGanmo, Yurusan reach their title on the mkII in N80 mode. 11 are PC-8801 files (N88-BASIC keyword
+      codes: LPRINT 0,25,0,1 = CONSOLE, LLIST 80,25 = WIDTH, DEF ERR = DEF USR; notes say MON R / load"cas:):
+      Dark World, Fightan, Snake World, The Search, Field, Blue Venus, Haunted Cave, Blue Fighter, 60 Second
+      Game reach their title on CSCP's PC-8801MA in N88 mode (3D HSTT: random seed prompt; The Prize: Syntax
+      error in 255 there too). Armada, Chako Nyan: nothing worked. tools/tape_db.txt flags mk2 / pc88 (13 new
+      titles), rtl/tape_db.svh carries a machine field (128 tapes). PC8001.sv: a known mk2 / mk2n tape sets the
+      OSD Model (mkII; SR kept) and Mode through hps_io status_set, waits for the status to come back (2 s max),
+      then resets (am_*); PCG left manual (shared PCG / non-PCG tapes). pc88 tapes show NEEDS A PC-8801.
+      tb_hint: 1826 checks (incl. machine per tape), 0 failed. The switch itself is not simulated (no hps_io in
+      the sim); check on hardware.
 - [ ] Disk hints for the type-in pack: of 56 new disks, ~20 boot by themselves (raw loaders), most N-BASIC disks
       autorun; a few stop at Ok (Dragon'N'Spirit: run"DRASPI"; textgame, Basic Program Shu: several programs).
 

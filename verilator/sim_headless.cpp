@@ -244,6 +244,7 @@ private:
     size_t    motor_stops = 0;
     std::multimap<uint32_t, std::string> tswaps;   // tapes to mount: frame -> file
     std::string last_hint;
+    int last_machine = 0;
     uint32_t  motor_off_frame = 0, motor_on_frames = 0;
     std::vector<uint8_t> disks[2];        // the disk images (hps_io S0, S1): 512-byte blocks
     int       sd_state = 0;               // 0 idle, 1 read block, 2 write block
@@ -483,6 +484,10 @@ void Sim::end_frame()
             while (!h.empty() && h.back() == ' ') h.pop_back();
         }
         if (h != last_hint) { printf("[hint] frame %u: %s\n", frame, h.empty() ? "(none)" : h.c_str()); fflush(stdout); last_hint = h; }
+        if (top->hint_machine != last_machine) {
+            static const char *mn[] = {"any", "mkII N80 mode", "mkII Mode N", "PC-8801"};
+            printf("[hint] frame %u: machine %s\n", frame, mn[top->hint_machine & 3]); fflush(stdout); last_machine = top->hint_machine;
+        }
     }
     if (opt.tape_end_stop && motor_stops && motor_stops >= opt.after_motor.size() && !top->tape_motor &&
         frame - motor_off_frame >= opt.tape_end_stop) done = true;

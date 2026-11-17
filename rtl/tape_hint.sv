@@ -26,6 +26,9 @@
 // each zone, at the start or past its k-th file (up to 64 bytes into the next, as RUN above), the commands its
 // notes give (G9000, CTRL+B RUN, CLEAR..., a second L), one line after another, each until its Returns (or
 // its Ctrl+B) have been pressed. The scan follows up to 8 files for these zones.
+// A known tape also names its machine: the mkII in N80 mode or in Mode N (machine_v pulses once the tape is
+// found; PC8001.sv switches the model and resets), or a PC-8801 tape (saved by N88-BASIC, whose keyword codes
+// differ, or 8801 machine code): no PC-8001 runs it, so the hint says NEEDS A PC-8801 instead of the steps.
 // Offsets are image offsets, as the player's position (rtl/pc8001_cmt.sv ptr).
 
 module tape_hint
@@ -45,7 +48,10 @@ module tape_hint
 	input      [10:0] ps2_key,
 
 	output            show,
-	output    [175:0] text          // 22 characters, first in bits 175-168; 01h = Return
+	output    [175:0] text,         // 22 characters, first in bits 175-168; 01h = Return
+
+	output reg  [1:0] machine = 0,  // the known tape's machine: 0 any, 1 mkII N80 mode, 2 mkII Mode N, 3 PC-8801
+	output reg        machine_v = 0 // pulse: a known tape has been found (after its download)
 );
 
 wire tape_dl = ioctl_download & (ioctl_index[5:0] == 6'd1);
@@ -243,7 +249,7 @@ end
 
 reg  [7:0] lk_i = 0;
 reg        lk_run = 0, lk_vd = 0;
-reg [49:0] lk_row = 0;
+reg [51:0] lk_row = 0;
 reg        known = 0;
 reg  [9:0] k_first = 0;
 reg  [3:0] k_cnt = 0;
@@ -251,15 +257,17 @@ reg  [3:0] k_cnt = 0;
 always @(posedge clk) begin
 	lk_row <= db_tape(lk_i);                    // a ROM: one entry a clock
 	lk_vd <= lk_run;
-	if (tape_dl) begin known <= 0; lk_run <= 0; lk_vd <= 0; end
+	machine_v <= 0;
+	if (tape_dl) begin known <= 0; lk_run <= 0; lk_vd <= 0; machine <= 0; end
 	else begin
 		if (scanned) begin lk_i <= 0; lk_run <= 1; end
 		else if (lk_run) begin
 			if (lk_i == 8'(DB_TAPES - 1)) lk_run <= 0;
 			lk_i <= lk_i + 1'd1;
 		end
-		if (lk_vd && lk_row[49:30] == dlen && lk_row[29:14] == crc) begin
-			known <= 1; k_first <= lk_row[13:4]; k_cnt <= lk_row[3:0];
+		if (lk_vd && lk_row[51:32] == dlen && lk_row[31:16] == crc) begin
+			known <= 1; k_first <= lk_row[15:6]; k_cnt <= lk_row[5:2];
+			machine <= lk_row[1:0]; machine_v <= 1;
 		end
 	end
 end
@@ -339,7 +347,8 @@ end
 
 wire       show_known = cz_v && !seek && !zdone && row_ev != 0;
 
-assign show = loaded && !motor && (known ? show_known : (step1 || step2));
+wire       pc88 = known && machine == 2'd3;
+assign show = loaded && !motor && (pc88 || (known ? show_known : (step1 || step2)));
 
 //----------------------------------------------------------------------------
 // What
@@ -360,7 +369,11 @@ reg [7:0] t [0:21];
 always @* begin
 	for (int i = 0; i < 22; i++) t[i] = 8'h20;
 	{t[0], t[1], t[2], t[3]} = "TYPE";
-	if (known) begin
+	if (pc88) begin
+		for (int i = 0; i < 22; i++) t[i] = 8'h20;
+		{t[0], t[1], t[2], t[3], t[4], t[5], t[6], t[7], t[8], t[9], t[10], t[11], t[12], t[13], t[14]} = "NEEDS A PC-8801";
+	end
+	else if (known) begin
 		for (int i = 0; i < 17; i++) t[5 + i] = row[135 - 8 * i -: 8];
 	end
 	else if (step1 && k1 == K_BASIC) begin

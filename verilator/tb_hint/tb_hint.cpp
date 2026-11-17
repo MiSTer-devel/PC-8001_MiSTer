@@ -5,6 +5,7 @@
 //   motor               the motor on for a few clocks, then off (a load has run)
 //   ret | ctrlb         a Return / Ctrl+B key press and release
 //   expect TEXT         the hint now: TYPE ... with <ret> for the Return arrow, trailing spaces cut; (none)
+//   machine N | -       the last tape was found in the table, its machine N (0-3); - : not found (no pulse)
 // Prints each failed expect and a summary; exit 1 on any failure.
 // Build: verilator --cc --exe --build -I../../rtl ../../rtl/tape_hint.sv tb_hint.cpp --top-module tape_hint -o tb_hint
 #include "Vtape_hint.h"
@@ -16,10 +17,11 @@
 
 static Vtape_hint *t;
 static bool toggle = false;
+static int mpulses = 0;             // machine_v pulses since the last tape command
 
 static void step(int n = 1)
 {
-	for (int i = 0; i < n; i++) { t->clk = 0; t->eval(); t->clk = 1; t->eval(); }
+	for (int i = 0; i < n; i++) { t->clk = 0; t->eval(); t->clk = 1; t->eval(); if (t->machine_v) mpulses++; }
 }
 
 static void key(int code, bool press)
@@ -62,6 +64,7 @@ int main(int argc, char **argv)
 			std::string ext = arg.substr(arg.find_last_of('.') + 1);
 			for (auto &e : ext) e = tolower(e);
 			t->loaded = 0;
+			mpulses = 0;
 			t->ioctl_index = ext == "t88" ? 0x41 : 0x01;
 			t->ioctl_download = 1; step(2);
 			for (size_t i = 0; i < d.size(); i++) {
@@ -75,6 +78,11 @@ int main(int argc, char **argv)
 		else if (cmd == "motor") { t->motor = 1; step(4); t->motor = 0; step(20); }
 		else if (cmd == "ret") { key(0x5A, true); key(0x5A, false); step(20); }
 		else if (cmd == "ctrlb") { key(0x14, true); key(0x32, true); key(0x32, false); key(0x14, false); step(20); }
+		else if (cmd == "machine") {
+			checks++;
+			std::string got = mpulses == 0 ? "-" : mpulses == 1 ? std::to_string((int)t->machine) : "pulses " + std::to_string(mpulses);
+			if (got != arg) { fails++; printf("FAIL %s (line %d): machine expected %s, got %s\n", title.c_str(), n, arg.c_str(), got.c_str()); }
+		}
 		else if (cmd == "expect") {
 			checks++;
 			std::string h = hint();

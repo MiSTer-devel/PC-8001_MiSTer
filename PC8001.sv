@@ -141,6 +141,20 @@ wire  [7:0] sd_buff_dout, sd_buff_din;
 wire        disk_unit, disk_motor;
 wire  [1:0] disk_ready, disk_too_big;
 
+wire   [1:0] hint_machine;
+wire         hint_machine_v;
+
+// A known tape that needs the mkII (tools/tape_db.txt mk2: N80 mode, mk2n: Mode N) while the machine runs
+// something else: the OSD's Model (the mkII, or the SR kept) and Mode are set through hps_io, and once the
+// status has come back with them, the machine resets into them (cfg). The tape stays mounted, at its start.
+reg  [1:0] am_st = 0;
+reg  [1:0] am_mode = 0;
+reg [25:0] am_t = 0;
+reg        am_set = 0;
+wire       am_reset = am_st == 2'd3;
+wire [127:0] am_status = {status[127:12], am_mode, status[9:8] == 2'd0 ? 2'd1 : status[9:8], status[7:0]};
+wire [1:0] am_want = hint_machine == 2'd1 ? 2'd0 : 2'd1;
+
 hps_io #(.CONF_STR(CONF_STR), .VDNUM(2)) hps_io
 (
 	.clk_sys(clk_sys),
@@ -152,6 +166,8 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2)) hps_io
 
 	.buttons(buttons),
 	.status(status),
+	.status_in(am_status),
+	.status_set(am_set),
 	// 1: Memory hidden (not the PC-8001), 2: Mode hidden (the PC-8001); from the live Model row
 	.status_menumask({13'd0, status[9:8] == 2'd0, status[9:8] != 2'd0, osd_pending}),
 	.info_req(tape_info_req),
@@ -194,7 +210,7 @@ pll pll
 	.outclk_1(clk_vid)
 );
 
-wire reset = RESET | status[0] | buttons[1] | (ioctl_download & (ioctl_index[5:0] == 6'd0 || ioctl_index[5:0] == 6'd2));
+wire reset = RESET | status[0] | buttons[1] | (ioctl_download & (ioctl_index[5:0] == 6'd0 || ioctl_index[5:0] == 6'd2)) | am_reset;
 
 // The settings the machine runs with, taken from the OSD at every reset
 reg [127:0] cfg;
@@ -302,6 +318,23 @@ end
 // Next step while the deck is stopped (tape standard rules 25-28): read from the tape as it downloads
 wire         hint_show;
 wire [175:0] hint_text;
+// the automatic model switch (am_*): see below the tape hint
+
+always @(posedge clk_sys) begin
+	am_set <= 0;
+	case (am_st)
+	2'd0: if (hint_machine_v && (hint_machine == 2'd1 || hint_machine == 2'd2) &&
+	          !(cfg[9:8] != 2'd0 && cfg[11:10] == am_want)) begin
+		am_mode <= am_want; am_st <= 2'd1;
+	end
+	2'd1: begin am_set <= 1; am_t <= 0; am_st <= 2'd2; end
+	2'd2: begin                                         // until the OSD has it (about 2 s at most)
+		am_t <= am_t + 1'd1;
+		if ((status[9:8] != 2'd0 && status[11:10] == am_mode) || &am_t) begin am_t <= 0; am_st <= 2'd3; end
+	end
+	2'd3: begin am_t <= am_t + 1'd1; if (am_t[8]) am_st <= 2'd0; end
+	endcase
+end
 
 tape_hint tape_hint
 (
@@ -317,7 +350,9 @@ tape_hint tape_hint
 	.position(tape_position),
 	.ps2_key(ps2_key),
 	.show(hint_show),
-	.text(hint_text)
+	.text(hint_text),
+	.machine(hint_machine),
+	.machine_v(hint_machine_v)
 );
 
 // Tape status bar while the deck plays (tape standard): bytes at about 55 a second (600 baud, 11 bits)

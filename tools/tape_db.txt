@@ -1,10 +1,14 @@
 # Tape hint database: what to type for tapes whose next steps are not on the tape (rtl/tape_hint.sv).
 # tools/tape_db.py turns it into rtl/tape_db.svh (the table the core uses) and into test scripts.
 #
-# title: NAME [pcg] [mk2|mk2n] [fails]   one title; pcg / mk2 / mk2n: needs the PCG-8100 / the PC-8001mkII
-#                              (N80 mode / Mode N); fails: does not run on any PC-8001 model in CSCP either
-#                              (BASIC 1.1 to 1.3, Disk BASIC: Syntax error / Disk BASIC Feature, most likely
-#                              PC-8801 listings), the lines are what its notes say
+# title: NAME [pcg] [mk2|mk2n|pc88|fails]   one title. pcg: needs the PCG-8100. mk2 / mk2n: needs the
+#                              PC-8001mkII in N80 mode (N-80 BASIC: CMD SCREEN, ...) / in Mode N; the core
+#                              switches to it (and turns the PCG on) when the tape is mounted, then resets.
+#                              pc88: a PC-8801 tape (saved by N88-BASIC, whose keyword codes differ: the
+#                              PC-8001 lists CONSOLE as LPRINT, WIDTH as LLIST; or machine code for the 8801);
+#                              runs in CSCP's PC-8801 in N88 mode, never on a PC-8001: the hint says so instead
+#                              of its steps. fails: runs on none of the models tried (PC-8001, mkII, mkIISR,
+#                              PC-8801); the lines are what its notes say
 # tape: FILE                   one of the title's tapes, in the order they are used (path under the pack)
 #   Z: STEP ; STEP ...         what to type once the tape has played past its Z-th file (0 = at its start).
 #                              A zone not listed keeps the core's own hint (CLOAD"name" / MON L at the start,
@@ -42,7 +46,7 @@ title: 3D Battle Maze (PiO)
 tape: 3D Battle Maze (PiO).cmt
   1: GC930\n
 play: {WAIT60}\n
-title: 60 Second Game (PiO) fails
+title: 60 Second Game (PiO) pc88
 tape: 60 Second Game (PiO).cmt
   1: GA000\n
 title: Alien Planet (PiO)
@@ -57,7 +61,7 @@ tape: Asteroid Outlaw (PiO).t88
 title: Beggar Snake (I-O)
 tape: Beggar Snake (I-O).t88
   1: GDA00\n
-title: Broken (PiO) fails
+title: Broken (PiO) mk2
 tape: Broken (PiO).t88
   1: GCA00\n
 title: Drive My PC (Popcom)
@@ -101,7 +105,7 @@ tape: Kurukuru (Popcom)/Kurukuru Data 2 (Bugfixed).t88
   1: GE5B4\n
 
 # --- BASIC and machine code on one tape: CLOAD, MON L, Ctrl+B RUN ----------------------------------------
-title: Space Alien (MyComp BASIC) fails
+title: Space Alien (MyComp BASIC) mk2
 tape: Space Alien (MyComp BASIC).t88
   1: MON\n L\n
   2: {CTRL}B RUN\n
@@ -113,7 +117,7 @@ title: Mikawashima Alien (PiO)
 tape: Mikawashima Alien (PiO).t88
   1: MON\n L\n
   2: {CTRL}B RUN\n
-title: Bon Bon (Konputa) (I-O) fails
+title: Bon Bon (Konputa) (I-O) mk2
 tape: Bon Bon (Konputa) (I-O).t88
   1: MON\n L\n
   2: {CTRL}B RUN\n
@@ -130,11 +134,11 @@ tape: Hander (PiO).t88
   0: CLEAR300,&HB2FF\n ; CLOAD"HD"\n
   1: MON\n L\n
   2: {CTRL}B RUN\n
-title: Dark World (I-O) fails
+title: Dark World (I-O) pc88
 tape: Dark World (Bugfixed) (I-O).cmt
   1: {CTRL}B ; CLOAD"DW"\n
   2: RUN\n
-title: Monster House (Konputa) (I-O) fails
+title: Monster House (Konputa) (I-O) mk2
 tape: Monster House (Konputa) (I-O).t88
   1: {CTRL}B ; CLOAD"NO1"\n
   2: RUN\n
@@ -156,7 +160,7 @@ tape: Jack Tigher (IO).cmt
 title: PCG-Jong pcg
 tape: PCG-Jong.cmt
   1: RUN\n
-title: PC-Jong Mk2 (Konputa) fails
+title: PC-Jong Mk2 (Konputa) mk2
 tape: PC-Jong Mk2 (Konputa).t88
   1: RUN\n
   2: -
@@ -187,7 +191,7 @@ tape: PCG Galaxian (I-O)/PCG Galaxian Loader.t88
   1: -
 tape: PCG Galaxian (I-O)/PCG Galaxian Data.t88
   1: {CTRL}B RUN\n
-title: Alien Hunter (Popcom) fails
+title: Alien Hunter (Popcom) mk2
 tape: Alien Hunter (Popcom)/Alien Hunter Loader.t88
   1: -
 tape: Alien Hunter (Popcom)/Alien Hunter Data.t88
@@ -207,12 +211,12 @@ tape: Attack Z80 (PiO)/Attack Z80 Loader.t88
   1: -
 tape: Attack Z80 (PiO)/Attack Z80 Data.t88
   1: {CTRL}B RUN\n
-title: Bubble Game (Popcom) fails
+title: Bubble Game (Popcom) mk2
 tape: Bubble Game (Popcom)/Bubble Game Loader.t88
   1: -
 tape: Bubble Game (Popcom)/Bubble Game Data.t88
   1: {CTRL}B RUN\n
-title: Candy Candy II (PiO) fails
+title: Candy Candy II (PiO) mk2
 tape: Candy Candy II (PiO)/Candy Candy II Loader.t88
   1: -
 tape: Candy Candy II (PiO)/Candy Candy II Data.t88
@@ -267,7 +271,7 @@ tape: Monster Revenge (PiO)/Monster Revenge Loader.t88
   1: -
 tape: Monster Revenge (PiO)/Monster Revenge Data.t88
   1: {CTRL}B RUN\n
-title: Parish (PiO) fails
+title: Parish (PiO) mk2
 tape: Parish (PiO)/Parish Loader.cmt
   1: -
 tape: Parish (PiO)/Parish Data.cmt
@@ -277,7 +281,7 @@ tape: PC-Comp (PiO)/PC-Comp Loader.t88
   1: -
 tape: PC-Comp (PiO)/PC-Comp Data.t88
   1: {CTRL}B RUN\n
-title: Pom Pom (PiO) fails
+title: Pom Pom (PiO) mk2
 tape: Pom Pom (PiO)/Pom Pom Loader.t88
   1: -
 tape: Pom Pom (PiO)/Pom Pom Data.t88
@@ -328,30 +332,84 @@ title: Leopard (Popcom)
 tape: Leopard (Popcom)/Leopard Data.t88
   1: {CTRL}B
 tape: Leopard (Popcom)/Leopard Loader.t88
-title: Mutant (Popcom) fails
+title: Mutant (Popcom) mk2
 tape: Mutant (Popcom)/1-Mutant Data.t88
   1: {CTRL}B
 tape: Mutant (Popcom)/2-Mutant Basic.t88
-title: 3D High Speed Table Tennis (I-O) fails
+title: 3D High Speed Table Tennis (I-O) pc88
 tape: 3D High Speed Table Tennis (I-O)/3D HSTT Data.t88
   1: {CTRL}B
 tape: 3D High Speed Table Tennis (I-O)/3D HSTT Loader.t88
-title: Fightan (PiO) fails
+title: Fightan (PiO) pc88
 tape: Fightan (PiO)/Fightan Data.t88
   1: {CTRL}B
 tape: Fightan (PiO)/Fightan Loader.t88
-title: Snake World (I-O) fails
+title: Snake World (I-O) pc88
 tape: Snake World (I-O)/Snake World Data.cmt
   1: {CTRL}B
 tape: Snake World (I-O)/Snake World Loader.cmt
-title: The Search (I-O) fails
+title: The Search (I-O) pc88
 tape: The Search (I-O)/The Search Data.t88
   0: CLEAR,&H88FF\n ; MON\n L\n
   1: {CTRL}B
 tape: The Search (I-O)/The Search Program.t88
-title: The Prize (I-O) fails
+title: The Prize (I-O) pc88
 tape: The Prize (I-O)/The Prize Loader.cmt
   1: -
 tape: The Prize (I-O)/The Prize Data.cmt
   0: RUN\n
   1: -
+
+# --- no notes; the machine found in CSCP (2026-11-17) ------------------------------------------------------
+title: Ghost Gather (PiO) mk2
+tape: Ghost Gather (1984)(Pio)(Mr. Mk).t88
+  0: CLOAD"GG"\n
+  1: RUN\n
+title: Hae Uchiotoshi Game (Programme Pochette) mk2
+tape: Hae Uchiotoshi Game (Programme Pochette).t88
+  0: CLOAD"HAE"\n
+  1: RUN\n
+title: Irregular and Regular Verbs (Tatsuya Suzuki) mk2
+tape: Irregular and Regular Verbs (Tatsuya Suzuki).cas
+  0: CLOAD"VERB"\n
+  1: RUN\n
+title: Pyon Pyon (Maison) mk2
+tape: Pyon Pyon (Maison).cas
+  0: CLOAD"PYON"\n
+  1: RUN\n
+title: Tree (Shintaro Ogawa) mk2
+tape: Tree (Shintaro Ogawa).t88
+  0: CLOAD"TREE"\n
+  1: RUN\n
+title: GuGuGanmo Yakitori Panic mk2
+tape: GuGuGanmo Yakitori Panic.t88
+  0: MON\n L\n
+  1: -
+title: Yurusan - YL3 (Kazutaka Nagase) mk2
+tape: Yurusan - YL3 (Kazutaka Nagase).t88
+  0: MON\n L\n
+  1: -
+title: Field (PiO) pc88
+tape: Field (PiO).t88
+  0: CLOAD"FI"\n
+  1: RUN\n
+title: Blue Venus (PiO) pc88
+tape: Blue Venus (PiO).t88
+  0: CLOAD"BB"\n
+  1: RUN\n
+title: Haunted Cave (Mycomp) pc88
+tape: Haunted Cave (Mycomp).cmt
+  0: CLOAD"CAVE"\n
+  1: RUN\n
+title: Blue Fighter (Login) pc88
+tape: Blue Fighter (Login).t88
+  0: MON\n L\n
+  1: GB600\n
+title: Armada (PiO) fails
+tape: Armada (PiO).t88
+  0: CLOAD"AR"\n
+  1: RUN\n
+title: Chako Nyan (PiO) fails
+tape: Chako Nyan (1985)(Pio)(Toshiyuki Araki).t88
+  0: MON\n L\n
+  1: GB700\n
