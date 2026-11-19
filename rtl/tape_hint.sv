@@ -29,6 +29,8 @@
 // A known tape also names its machine: the mkII in N80 mode or in Mode N (machine_v pulses once the tape is
 // found; PC8001.sv switches the model and resets), or a PC-8801 tape (saved by N88-BASIC, whose keyword codes
 // differ, or 8801 machine code): no PC-8001 runs it, so the hint says NEEDS A PC-8801 instead of the steps.
+// A title on two tapes: its first tape's last line is MOUNT NEXT TAPE (a message line: events 7, no TYPE,
+// kept until the next mount), and its second tape mounted after any other tape says MOUNT THE FIRST TAPE.
 // Offsets are image offsets, as the player's position (rtl/pc8001_cmt.sv ptr).
 
 module tape_hint
@@ -247,27 +249,38 @@ end
 
 `include "tape_db.svh"
 
-reg  [7:0] lk_i = 0;
+reg  [7:0] lk_i = 0, lk_ri = 0;
 reg        lk_run = 0, lk_vd = 0;
-reg [51:0] lk_row = 0;
+reg [60:0] lk_row = 0;
 reg        known = 0;
 reg  [9:0] k_first = 0;
 reg  [3:0] k_cnt = 0;
+// a title's later tape wants its first one mounted just before it (or itself again, as after a reset):
+// another tape before it (or none since power-on) -> MOUNT THE FIRST TAPE instead of its steps
+reg  [7:0] last_i = 0;          // the known tape mounted last
+reg        last_v = 0;
+reg        first_needed = 0;
 
 always @(posedge clk) begin
 	lk_row <= db_tape(lk_i);                    // a ROM: one entry a clock
+	lk_ri <= lk_i;
 	lk_vd <= lk_run;
 	machine_v <= 0;
-	if (tape_dl) begin known <= 0; lk_run <= 0; lk_vd <= 0; machine <= 0; end
+	if (tape_dl) begin
+		known <= 0; lk_run <= 0; lk_vd <= 0; machine <= 0; first_needed <= 0;
+	end
 	else begin
 		if (scanned) begin lk_i <= 0; lk_run <= 1; end
 		else if (lk_run) begin
 			if (lk_i == 8'(DB_TAPES - 1)) lk_run <= 0;
 			lk_i <= lk_i + 1'd1;
 		end
-		if (lk_vd && lk_row[51:32] == dlen && lk_row[31:16] == crc) begin
-			known <= 1; k_first <= lk_row[15:6]; k_cnt <= lk_row[5:2];
-			machine <= lk_row[1:0]; machine_v <= 1;
+		if (lk_vd && !lk_run && !known) last_v <= 0;   // the lookup ends without a match: an unknown tape
+		if (lk_vd && lk_row[60:41] == dlen && lk_row[40:25] == crc) begin
+			known <= 1; k_first <= lk_row[24:15]; k_cnt <= lk_row[14:11];
+			machine <= lk_row[10:9]; machine_v <= 1;
+			first_needed <= lk_row[8] && !(last_v && (last_i == lk_row[7:0] || last_i == lk_ri));
+			last_i <= lk_ri; last_v <= 1;
 		end
 	end
 end
@@ -321,6 +334,7 @@ reg  [2:0] ev = 0;
 wire [2:0] row_zone = row[142:140];
 wire       row_last = row[139];
 wire [2:0] row_ev = row[138:136];
+wire       msg = row_ev == 3'd7;    // a message (MOUNT NEXT TAPE): shown without TYPE, keys do not remove it
 
 always @(posedge clk) begin
 	row <= db_line(cur);                        // a ROM, a clock behind cur
@@ -335,7 +349,7 @@ always @(posedge clk) begin
 		else if ({1'b0, row_zone} > czone || cur == k_first + 10'(k_cnt) - 1'd1) begin seek <= 0; zdone <= 1; end
 		else begin cur <= cur + 1'd1; wait1 <= 1; end
 	end
-	else if ((ret | ctrlb) & ~motor & cz_v & ~zdone) begin
+	else if ((ret | ctrlb) & ~motor & cz_v & ~zdone & ~msg) begin
 		if (ev + 1'd1 >= row_ev) begin
 			ev <= 0;
 			if (row_last) zdone <= 1;
@@ -348,7 +362,8 @@ end
 wire       show_known = cz_v && !seek && !zdone && row_ev != 0;
 
 wire       pc88 = known && machine == 2'd3;
-assign show = loaded && !motor && (pc88 || (known ? show_known : (step1 || step2)));
+wire       first = known && first_needed;
+assign show = loaded && !motor && (pc88 || first || (known ? show_known : (step1 || step2)));
 
 //----------------------------------------------------------------------------
 // What
@@ -372,6 +387,14 @@ always @* begin
 	if (pc88) begin
 		for (int i = 0; i < 22; i++) t[i] = 8'h20;
 		{t[0], t[1], t[2], t[3], t[4], t[5], t[6], t[7], t[8], t[9], t[10], t[11], t[12], t[13], t[14]} = "NEEDS A PC-8801";
+	end
+	else if (first) begin
+		for (int i = 0; i < 22; i++) t[i] = 8'h20;
+		{t[0], t[1], t[2], t[3], t[4], t[5], t[6], t[7], t[8], t[9], t[10], t[11], t[12], t[13], t[14], t[15], t[16], t[17], t[18], t[19]} = "MOUNT THE FIRST TAPE";
+	end
+	else if (known && msg) begin
+		for (int i = 0; i < 22; i++) t[i] = 8'h20;
+		for (int i = 0; i < 17; i++) t[i] = row[135 - 8 * i -: 8];
 	end
 	else if (known) begin
 		for (int i = 0; i < 17; i++) t[5 + i] = row[135 - 8 * i -: 8];

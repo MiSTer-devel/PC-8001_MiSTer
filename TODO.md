@@ -150,8 +150,13 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       tb_hint: 1826 checks (incl. machine per tape), 0 failed. The switch itself is not simulated (no hps_io in
       the sim); check on hardware.
 - [x] Tester zip 20261118: testers/PC8001_tester_20261118.zip (125fa0a rbf = releases/PC8001_20261118.rbf: mkII
-      switch, NEEDS A PC-8801; README: the mkII list, PC-8801 TAPES write-up for Danjuro). Not in git. Not
-      checked on hardware.
+      switch, NEEDS A PC-8801; README: the mkII list, PC-8801 TAPES write-up for Danjuro). Not in git. On Mister
+      11 (10.0.2.11, the user's keyboard and display) 2026-11-18: the mkII switch works ("much better").
+- [x] Two-tape titles (user on Mister 11, 2026-11-18: no hint to change tapes): the first tape's last line is
+      MOUNT NEXT TAPE (tape_db.py appends a message step, events 7: no TYPE, not removed by keys); the second
+      tape mounted after anything but its first tape (or first since power-on) shows MOUNT THE FIRST TAPE
+      (tape_db.svh rows carry the tape to come after; tape_hint.sv remembers the last known tape, forgotten by
+      an unknown one). 32 titles. tb_hint: 1922 checks, 0 failed.
 - [ ] Disk hints for the type-in pack: of 56 new disks, ~20 boot by themselves (raw loaders), most N-BASIC disks
       autorun; a few stop at Ok (Dragon'N'Spirit: run"DRASPI"; textgame, Basic Program Shu: several programs).
 
