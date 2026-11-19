@@ -60,9 +60,9 @@ localparam CONF_STR = {
 	"PC8001;;",
 	"-;",
 	// PC-80S31 disk unit, when boot.rom has disk.rom: a .d88 image, written back as the drive changes it;
-	// remembered (SC): mounted again at the next core start
-	"SC0,D88,Drive 1;",
-	"SC1,D88,Drive 2;",
+	// not remembered (S, not SC: removable media, osd-standard): a core start has empty drives
+	"S0,D88,Drive 1;",
+	"S1,D88,Drive 2;",
 	// The whole image is loaded into the core; not remembered (F, not FC), so a core start has no tape.
 	"F1,CMTT88CAS,Tape;",
 	// a memory image from 8000h, started at once from FF3Dh as CSCP does; for the machine as it is (BASIC up)

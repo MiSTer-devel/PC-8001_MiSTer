@@ -269,7 +269,7 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
       forced_scandoubler; P2 Scale and Scandoubler Fx (all four Fx checked; V-Integer 5x = 1000 lines, 2x with
       Fx), Original = 48:35 (640 x 200, PAR 3/7), aspect acting at once. OSD: Memory on the top page (hidden on
       the mkII/SR), Load ROM last, P3 Input (Keyboard, Swap Alt/Win: checked), Mode hidden on the PC-8001,
-      SC0/SC1. Tape overlay checked through the mixer. Not checked: a VGA monitor, a 15 kHz CRT.
+      S0/S1 (SC0/SC1 until 2026-11-19). Tape overlay checked through the mixer. Not checked: a VGA monitor, a 15 kHz CRT.
 - [x] PCG-8100 sound on hardware (Mister 192, e940a28, 2026-11-13): PCG-8100 On, out 15,54 / out 12,232 /
       out 12,3 / out 2,8 (8253 ch 0 = 1000, mode 3; 02h bit 3): 3994 Hz, amplitude 5018; then beep 1 alone:
       2400 Hz, 5058. PCG/beep 0.99 (CSCP 0.98). misterkvms-cli record, tools/audio_tones.py.
@@ -304,4 +304,4 @@ Spec from CSCP's pc8001mk2sr build: refs/docs/SR_NOTES.md.
 
 ## Last
 - [ ] CSAVE to a file (8251 transmit to a .cmt). Low value on MiSTer: the tape slot is load-only, and
-      saving is covered by the disks (SC0/SC1, written back to the .d88).
+      saving is covered by the disks (S0/S1, written back to the .d88).
