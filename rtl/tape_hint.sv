@@ -53,7 +53,8 @@ module tape_hint
 	output    [175:0] text,         // 22 characters, first in bits 175-168; 01h = Return
 
 	output reg  [1:0] machine = 0,  // the known tape's machine: 0 any, 1 mkII N80 mode, 2 mkII Mode N, 3 PC-8801
-	output reg        machine_v = 0 // pulse: a known tape has been found (after its download)
+	output reg        machine_v = 0, // pulse: a known tape has been found (after its download)
+	output reg [12:0] joy_map = 0   // the known tape's OSD Joystick Auto map (tape_db.svh joy; 0: none)
 );
 
 wire tape_dl = ioctl_download & (ioctl_index[5:0] == 6'd1);
@@ -251,7 +252,7 @@ end
 
 reg  [7:0] lk_i = 0, lk_ri = 0;
 reg        lk_run = 0, lk_vd = 0;
-reg [60:0] lk_row = 0;
+reg [73:0] lk_row = 0;
 reg        known = 0;
 reg  [9:0] k_first = 0;
 reg  [3:0] k_cnt = 0;
@@ -267,7 +268,7 @@ always @(posedge clk) begin
 	lk_vd <= lk_run;
 	machine_v <= 0;
 	if (tape_dl) begin
-		known <= 0; lk_run <= 0; lk_vd <= 0; machine <= 0; first_needed <= 0;
+		known <= 0; lk_run <= 0; lk_vd <= 0; machine <= 0; first_needed <= 0; joy_map <= 0;
 	end
 	else begin
 		if (scanned) begin lk_i <= 0; lk_run <= 1; end
@@ -278,7 +279,7 @@ always @(posedge clk) begin
 		if (lk_vd && !lk_run && !known) last_v <= 0;   // the lookup ends without a match: an unknown tape
 		if (lk_vd && lk_row[60:41] == dlen && lk_row[40:25] == crc) begin
 			known <= 1; k_first <= lk_row[24:15]; k_cnt <= lk_row[14:11];
-			machine <= lk_row[10:9]; machine_v <= 1;
+			machine <= lk_row[10:9]; machine_v <= 1; joy_map <= lk_row[73:61];
 			first_needed <= lk_row[8] && !(last_v && (last_i == lk_row[7:0] || last_i == lk_ri));
 			last_i <= lk_ri; last_v <= 1;
 		end

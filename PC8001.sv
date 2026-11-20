@@ -101,7 +101,7 @@ localparam CONF_STR = {
 	"P3O[17],Swap Alt/Win keys,No,Yes;",
 	"P3-;",
 	// rtl/pc8001_joy.sv: a pad pressing keys (the machine had no joystick port); acts at once
-	"P3O[19:18],Joystick,Off,Numpad,Cursor keys;",
+	"P3O[19:18],Joystick,Off,Numpad,Cursor keys,Auto;",
 	"P3O[20],Diagonals,Two keys,Numpad 7-9-1-3;",
 	"P3O[23:21],Button A,Space,Return,SHIFT,Z,X,Numpad 0,Numpad 5;",
 	"P3O[26:24],Button B,Return,Space,SHIFT,Z,X,Numpad 0,Numpad 5;",
@@ -154,6 +154,7 @@ wire  [1:0] disk_ready, disk_too_big;
 
 wire   [1:0] hint_machine;
 wire         hint_machine_v;
+wire  [12:0] hint_joy;         // the known tape's Joystick Auto map
 
 // A known tape that needs the mkII (tools/tape_db.txt mk2: N80 mode, mk2n: Mode N) while the machine runs
 // something else: the OSD's Model (the mkII, or the SR kept) and Mode are set through hps_io, and once the
@@ -233,7 +234,7 @@ pc8001_joy joy
 	.diag(status[20]),
 	.a(status[23:21]),
 	.b(status[26:24]),
-	.c(status[29:27]),
+	.c(status[29:27]),.auto_map(hint_joy),
 	.keys(joy_keys)
 );
 
@@ -378,7 +379,8 @@ tape_hint tape_hint
 	.show(hint_show),
 	.text(hint_text),
 	.machine(hint_machine),
-	.machine_v(hint_machine_v)
+	.machine_v(hint_machine_v),
+	.joy_map(hint_joy)
 );
 
 // Tape status bar while the deck plays (tape standard): bytes at about 55 a second (600 baud, 11 bits)

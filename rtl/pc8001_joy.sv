@@ -4,7 +4,9 @@
 //
 // joy (hps_io joystick_0, CONF_STR J1): 0 right, 1 left, 2 down, 3 up, 4 A, 5 B, 6 C, 7 Start, 8 Select, 9 STOP.
 // mode: 0 Off, 1 Numpad (8 2 4 6), 2 Cursor keys (UP, RIGHT; down and left press SHIFT with them as the
-//   machine's own keys do, and the SR's row 0Ah down / left).
+//   machine's own keys do, and the SR's row 0Ah down / left), 3 Auto: the known tape's map (auto_map, from
+//   tools/tape_db.txt joy:), else Numpad with the OSD's diag and buttons.
+// auto_map: {valid, mode[1:0], diag, key ids of A, B, C}.
 // diag (Numpad only): 0 two keys at once (8+6), 1 one key (7 9 1 3).
 // a / b / c: the button's key, by its OSD row (each row lists its default first):
 //   A: Space, Return, SHIFT, Z, X, Numpad 0, Numpad 5
@@ -21,6 +23,7 @@ module pc8001_joy
 	input       [2:0] a,
 	input       [2:0] b,
 	input       [2:0] c,
+	input      [12:0] auto_map,
 	output reg [87:0] keys
 );
 
@@ -46,16 +49,22 @@ function automatic [87:0] pad(input [3:0] n);
 endfunction
 
 wire r = joy[0], l = joy[1], d = joy[2], u = joy[3];
-wire [2:0] b_id = b == 3'd0 ? 3'd1 : b == 3'd1 ? 3'd0 : b;
-wire [2:0] c_id = c == 3'd0 ? 3'd2 : c == 3'd2 ? 3'd1 : c == 3'd1 ? 3'd0 : c;
+wire [2:0] b_osd = b == 3'd0 ? 3'd1 : b == 3'd1 ? 3'd0 : b;
+wire [2:0] c_osd = c == 3'd0 ? 3'd2 : c == 3'd2 ? 3'd1 : c == 3'd1 ? 3'd0 : c;
+wire       am   = mode == 2'd3 && auto_map[12];
+wire [1:0] md   = mode == 2'd3 ? (am ? auto_map[11:10] : 2'd1) : mode;
+wire       dg   = am ? auto_map[9] : diag;
+wire [2:0] a_id = am ? auto_map[8:6] : a;
+wire [2:0] b_id = am ? auto_map[5:3] : b_osd;
+wire [2:0] c_id = am ? auto_map[2:0] : c_osd;
 
 always @(*) begin
 	keys = 0;
-	if (mode == 2'd1) begin
-		if (diag && u && r)      keys = pad(4'd9);
-		else if (diag && u && l) keys = pad(4'd7);
-		else if (diag && d && r) keys = pad(4'd3);
-		else if (diag && d && l) keys = pad(4'd1);
+	if (md == 2'd1) begin
+		if (dg && u && r)      keys = pad(4'd9);
+		else if (dg && u && l) keys = pad(4'd7);
+		else if (dg && d && r) keys = pad(4'd3);
+		else if (dg && d && l) keys = pad(4'd1);
 		else begin
 			if (u) keys = keys | pad(4'd8);
 			if (d) keys = keys | pad(4'd2);
@@ -63,15 +72,15 @@ always @(*) begin
 			if (r) keys = keys | pad(4'd6);
 		end
 	end
-	else if (mode == 2'd2) begin
+	else if (md == 2'd2) begin
 		if (u | d) keys[8*8 + 1] = 1;              // UP (down: SHIFT + UP)
 		if (r | l) keys[8*8 + 2] = 1;              // RIGHT (left: SHIFT + RIGHT)
 		if (d | l) keys[8*8 + 6] = 1;              // SHIFT
 		if (d) keys[10*8 + 1] = 1;                 // SR down
 		if (l) keys[10*8 + 2] = 1;                 // SR left
 	end
-	if (mode != 2'd0) begin
-		if (joy[4]) keys = keys | key(a);
+	if (md != 2'd0) begin
+		if (joy[4]) keys = keys | key(a_id);
 		if (joy[5]) keys = keys | key(b_id);
 		if (joy[6]) keys = keys | key(c_id);
 		if (joy[7]) keys = keys | key(3'd1);       // Start: Return

@@ -130,4 +130,6 @@ BASIC type-ins read INKEY$ (no port reads to scan); most use 2 4 6 8 and Space (
 - Most games: **Numpad + Space** (the OSD defaults). An Auto mode mainly has to flag the exceptions: diagonals
   (Itasundorious), Z / X (Door Door), pad 5 (Kaeru Shooter), cursor keys.
 - New keys some games need on a button: pad +, pad =, C, top-row digits.
+- Done: OSD Joystick Auto; tape_db.txt `joy:` lines for the 16 screen-confirmed titles above (Auto falls back
+  to Numpad + the OSD buttons for the rest).
 - Next: confirm the "needs a look" and scan rows by playing in CSCP, then a map field in tape_db.txt.

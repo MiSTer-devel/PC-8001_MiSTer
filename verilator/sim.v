@@ -82,9 +82,10 @@ assign AUDIO_L = audio;
 assign AUDIO_R = audio;
 
 wire [87:0] joy_keys;
+wire [12:0] hint_joy;
 pc8001_joy joy_map
 (
-   .joy(joy), .mode(joy_cfg[1:0]), .diag(joy_cfg[2]), .a(joy_cfg[5:3]), .b(joy_cfg[8:6]), .c(joy_cfg[11:9]),
+   .joy(joy), .mode(joy_cfg[1:0]), .diag(joy_cfg[2]), .a(joy_cfg[5:3]), .b(joy_cfg[8:6]), .c(joy_cfg[11:9]), .auto_map(hint_joy),
    .keys(joy_keys)
 );
 
@@ -133,7 +134,7 @@ tape_hint tape_hint
    .clk(clk_sys), .ioctl_download(ioctl_download), .ioctl_index(ioctl_index), .ioctl_wr(ioctl_wr),
    .ioctl_addr(ioctl_addr), .ioctl_dout(ioctl_dout), .loaded(tape_loaded), .motor(tape_motor),
    .rewind(tape_rewind), .position(tape_position), .ps2_key(ps2_key), .show(hint_show), .text(hint_text),
-   .machine(hint_machine), .machine_v()
+   .machine(hint_machine), .machine_v(), .joy_map(hint_joy)
 );
 tape_status tape_status
 (
