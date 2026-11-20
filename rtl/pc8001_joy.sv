@@ -48,11 +48,13 @@ function automatic [87:0] pad(input [3:0] n);
 	pad[n] = 1;
 endfunction
 
+// OSD order (status[19:18]): 0 Auto (the default), 1 Numpad, 2 Cursor keys, 3 Off
+wire [1:0] mo = mode == 2'd0 ? 2'd3 : mode == 2'd3 ? 2'd0 : mode;
 wire r = joy[0], l = joy[1], d = joy[2], u = joy[3];
 wire [2:0] b_osd = b == 3'd0 ? 3'd1 : b == 3'd1 ? 3'd0 : b;
 wire [2:0] c_osd = c == 3'd0 ? 3'd2 : c == 3'd2 ? 3'd1 : c == 3'd1 ? 3'd0 : c;
-wire       am   = mode == 2'd3 && auto_map[12];
-wire [1:0] md   = mode == 2'd3 ? (am ? auto_map[11:10] : 2'd1) : mode;
+wire       am   = mo == 2'd3 && auto_map[12];
+wire [1:0] md   = mo == 2'd3 ? (am ? auto_map[11:10] : 2'd1) : mo;
 wire       dg   = am ? auto_map[9] : diag;
 wire [2:0] a_id = am ? auto_map[8:6] : a;
 wire [2:0] b_id = am ? auto_map[5:3] : b_osd;

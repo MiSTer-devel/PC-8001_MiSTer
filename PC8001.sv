@@ -101,7 +101,7 @@ localparam CONF_STR = {
 	"P3O[17],Swap Alt/Win keys,No,Yes;",
 	"P3-;",
 	// rtl/pc8001_joy.sv: a pad pressing keys (the machine had no joystick port); acts at once
-	"P3O[19:18],Joystick,Off,Numpad,Cursor keys,Auto;",
+	"P3O[19:18],Joystick,Auto,Numpad,Cursor keys,Off;",
 	"P3O[20],Diagonals,Two keys,Numpad 7-9-1-3;",
 	"P3O[23:21],Button A,Space,Return,SHIFT,Z,X,Numpad 0,Numpad 5;",
 	"P3O[26:24],Button B,Return,Space,SHIFT,Z,X,Numpad 0,Numpad 5;",
