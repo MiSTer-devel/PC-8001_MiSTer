@@ -413,3 +413,150 @@ title: Chako Nyan (PiO) fails
 tape: Chako Nyan (1985)(Pio)(Toshiyuki Araki).t88
   0: MON\n L\n
   1: GB700\n
+
+# --- commercial tapes (Danjuro's PC88 Mister Friendly pack, @Commercial/80): run on the mkII in N80 mode
+#     only (CSCP pc8001mk2 --boot-mode 0); on the PC-8001 they stop at * or say Disk BASIC Feature
+title: Anata wa Meikameraman mk2
+tape: @Commercial/80/Anata wa Meikameraman.cmt
+  0: MON\n L\n
+title: Arale no Jump Up (Enix) mk2
+tape: @Commercial/80/Arale no Jump Up/Arale No Jump Up (1984)(Enix)(Geimu Kyojin)(Norio Komaki)(Sahohime)(Shueisha)(Akira Toriyama) Part 1.t88
+  0: CLOAD"jump"\n
+  1: RUN\n
+tape: @Commercial/80/Arale no Jump Up/Arale No Jump Up (1984)(Enix)(Geimu Kyojin)(Norio Komaki)(Sahohime)(Shueisha)(Akira Toriyama) Part 2.t88
+  0: -
+title: Arranger mk2
+tape: @Commercial/80/Arranger.cmt
+  0: CLOAD"ARRANG"\n
+title: Cannon Ball mk2
+tape: @Commercial/80/Cannon Ball.t88
+  0: MON\n L\n
+title: Champion Prowres Special mk2
+tape: @Commercial/80/Champion Prowres Special.t88
+  0: CLOAD"champ"\n
+  1: RUN\n
+title: Dish Carrier mk2
+tape: @Commercial/80/Dish Carrier.cmt
+  0: MON\n L\n
+title: Door Door mk2
+tape: @Commercial/80/Door Door.t88
+  0: CLOAD"DOOR"\n
+title: Field Wars mk2
+tape: @Commercial/80/Field Wars.cmt
+  0: MON\n L\n
+title: Fireball mk2
+tape: @Commercial/80/Fireball.cmt
+  0: MON\n L\n
+title: Flappy mk2
+tape: @Commercial/80/Flappy.t88
+  0: CLOAD"flappy"\n
+title: Flicky mk2
+tape: @Commercial/80/Flicky.t88
+  0: CLOAD"FLICKY"\n
+  1: RUN\n
+title: Geimu Kyojin no Uchu Ryoko mk2
+tape: @Commercial/80/Geimu Kyojin no Uchu Ryoko.t88
+  0: CLOAD"IPL"\n
+title: Gunman mk2
+tape: @Commercial/80/Gunman.t88
+  0: MON\n L\n
+title: Gyoza Panic mk2
+tape: @Commercial/80/Gyoza Panic.cmt
+  0: MON\n L\n
+title: Harvest mk2
+tape: @Commercial/80/Harvest.t88
+  0: CLOAD"harves"\n
+  1: RUN\n
+title: Help! mk2
+tape: @Commercial/80/Help!.cmt
+  0: MON\n L\n
+title: Itasundorious mk2
+tape: @Commercial/80/Itasundorious.t88
+  0: MON\n L\n
+title: Kaeru Shooter mk2
+tape: @Commercial/80/Kaeru Shooter.cmt
+  0: MON\n L\n
+title: Kareina Kaito mk2
+tape: @Commercial/80/Kareina Kaito.cmt
+  0: MON\n L\n
+title: Killer Station mk2
+tape: @Commercial/80/Killer Station.cmt
+  0: MON\n L\n
+title: Lode Runner mk2
+tape: @Commercial/80/Lode Runner.t88
+  0: CLOAD"loader"\n
+  1: RUN\n
+title: MJ-05 mk2
+tape: @Commercial/80/MJ-05.cmt
+  0: MON\n L\n
+title: Mag Force mk2
+tape: @Commercial/80/Mag Force.cmt
+  0: MON\n L\n
+title: Magnetic Field mk2
+tape: @Commercial/80/Magnetic Field.cmt
+  0: CLOAD"field"\n
+title: Mister Butterfly mk2
+tape: @Commercial/80/Mister Butterfly.cmt
+  0: MON\n L\n
+title: Mystery Mountain mk2
+tape: @Commercial/80/Mystery Mountain.t88
+  0: MON\n L\n
+title: Pac-Man mk2
+tape: @Commercial/80/Pac-Man.t88
+  0: CLOAD"pacman"\n
+title: Power Fail mk2
+tape: @Commercial/80/Power Fail.cmt
+  0: MON\n L\n
+title: Punch Ball Mario Bros mk2
+tape: @Commercial/80/Punch Ball Mario Bros.t88
+  0: MON\n L\n
+title: Rolling Shooter mk2
+tape: @Commercial/80/Rolling Shooter.cmt
+  0: MON\n L\n
+title: Salad no Kuni no Tomato-hime mk2
+tape: @Commercial/80/Salad no Kuni no Tomato-hime/Tomato Hime Tape 1.t88
+  0: CLOAD"*"\n
+  1: RUN\n
+tape: @Commercial/80/Salad no Kuni no Tomato-hime/Tomato Hime Tape 2.t88
+  0: -
+  1: -
+tape: @Commercial/80/Salad no Kuni no Tomato-hime/Tomato Hime Tape 3.t88
+  0: -
+  1: -
+tape: @Commercial/80/Salad no Kuni no Tomato-hime/Tomato Hime Tape 4.t88
+  0: -
+  1: -
+tape: @Commercial/80/Salad no Kuni no Tomato-hime/Tomato Hime Tape 5.t88
+  0: -
+  1: -
+title: Saver Part-1 mk2
+tape: @Commercial/80/Saver Part-1.t88
+  0: MON\n L\n
+title: Sky Diver mk2
+tape: @Commercial/80/Sky Diver.cmt
+  0: MON\n L\n
+title: Slalom mk2
+tape: @Commercial/80/Slalom.t88
+  0: MON\n L\n
+title: Star Fleet mk2
+tape: @Commercial/80/Star Fleet.cmt
+  0: CLOAD"FLEET"\n
+title: Star Stream mk2
+tape: @Commercial/80/Star Stream.cmt
+  0: MON\n L\n
+title: Super Doors mk2
+tape: @Commercial/80/Super Doors.cmt
+  0: MON\n L\n
+title: Super Golf mk2
+tape: @Commercial/80/Super Golf.cmt
+  0: CLOAD"SG"\n
+  1: RUN\n
+title: Vegetable Crush mk2
+tape: @Commercial/80/Vegetable Crush.t88
+  0: MON\n L\n
+title: YL3 mk2
+tape: @Commercial/80/YL3.t88
+  0: MON\n L\n
+title: Zero Fighter mk2
+tape: @Commercial/80/Zero Fighter.t88
+  0: MON\n L\n

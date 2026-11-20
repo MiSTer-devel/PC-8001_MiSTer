@@ -157,6 +157,14 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       tape mounted after anything but its first tape (or first since power-on) shows MOUNT THE FIRST TAPE
       (tape_db.svh rows carry the tape to come after; tape_hint.sv remembers the last known tape, forgotten by
       an unknown one). 32 titles. tb_hint: 1922 checks, 0 failed.
+- [x] Danjuro's "PC88 Mister Friendly 20261119" pack: its @Magazine Programs/80 holds the type-in tapes we have.
+      Its 53 new @Commercial/80 tapes in CSCP (2026-11-19): on the PC-8001 only Bakuso! 5000 Mile, Radar
+      Snaky, Yumeno Pro Yakyu and Nintendo Tennis run; 41 titles (Arale 2 tapes, Tomato-hime 5) run on the
+      mkII in N80 mode with the core's own MON L / CLOAD+RUN steps (the E4CB loaders start themselves there):
+      tagged mk2 in tape_db.txt (174 tapes; tb_hint 1161 checks, 0 failed). Pack copy: scratchpad
+      typeins/80/@Commercial/80. Not solved: Moon Patrol (G8F00: Syntax error in 60159), Puckn Boy (no
+      headers found), Yonin Mahjong (MON L then CLOAD"MAJ"; untested: CSCP mk2 lacks {CTRL}x), space diamond
+      (Syntax error in 20). The 81 @Commercial/88 / 88 tapes: not yet checked on a PC-8801.
 - [ ] Disk hints for the type-in pack: of 56 new disks, ~20 boot by themselves (raw loaders), most N-BASIC disks
       autorun; a few stop at Ok (Dragon'N'Spirit: run"DRASPI"; textgame, Basic Program Shu: several programs).
 
