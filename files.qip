@@ -18,6 +18,7 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/d88_media.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/i8255_m0.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pc8001_crtc.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pc8001_kbd.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/pc8001_joy.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pit8253.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/upd1990a.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/pc8001.sv

@@ -39,6 +39,8 @@ struct Options {
     std::string out_dir = "out";
     std::string frame_log;
     std::vector<TypeCmd> types;
+    std::vector<std::pair<uint32_t, uint32_t>> joys;   // --joy FRAME:BITS (hex): joystick bits from that frame
+    uint32_t    joy_cfg = 0;                            // --joy-cfg N: OSD status[29:18]
     uint32_t    type_press = 4, type_release = 4;
     std::string trace_file;               // --trace-cpu
     std::string io_file;                  // --trace-io
@@ -84,6 +86,8 @@ static void usage()
 "  --rom-dir DIR          DIR/n80v110.rom and DIR/font.rom (default ../refs/emulators/mame_roms/pc8001);\n"
 "                         --basic FILE / --font FILE\n"
 "  --ram16k               16 KB RAM (C000-FFFF) instead of 32 KB\n"
+"  --joy FRAME:BITS      joystick bits (hex: 1 right 2 left 4 down 8 up 10 A 20 B 40 C 80 Start 100 Select 200 STOP) from FRAME\n"
+"  --joy-cfg N           OSD Input rows, status[29:18]: 1-0 Joystick, 2 Diagonals, 5-3 A, 8-6 B, 11-9 C\n"
 "  --pcg                  PCG-8100 connected\n"
 "  --mk2                  PC-8001mkII (boot1.rom = DIR/n80_2.rom + DIR/kanji1.rom, --mk2-dir DIR); --n-mode:\n"
 "                         its N-BASIC switch\n"
@@ -152,6 +156,8 @@ static bool parse_args(int argc, char **argv, Options &o)
         else if (a == "--stop-at-frame") o.stop_frame = parse_num(next());
         else if (a == "--quiet") o.quiet = true;
         else if (a == "--type") { uint32_t f; if (!pair("FRAME:TEXT", f, rest)) return false; o.types.push_back({f, rest}); }
+        else if (a == "--joy") { uint32_t f; if (!pair("FRAME:BITS", f, rest)) return false; o.joys.push_back({f, (uint32_t)strtoul(rest.c_str(), nullptr, 16)}); }
+        else if (a == "--joy-cfg") o.joy_cfg = parse_num(next());
         else if (a == "--type-rate") { if (!pair("P:R", o.type_press, rest)) return false; o.type_release = parse_num(rest); }
         else if (a == "--screenshot") o.screenshots.insert(parse_num(next()));
         else if (a == "--dump-every") o.dump_every = parse_num(next());
@@ -580,6 +586,8 @@ int Sim::run()
     top->n_mode = opt.n_mode;
     top->v2 = opt.v2;
     top->kbd_us = opt.kbd_us;
+    top->joy = 0;
+    top->joy_cfg = opt.joy_cfg;
     top->overlay = opt.overlay;
     // the MiSTer's RTC as Main sends it: 2026-11-03 (Tuesday) 12:00:00, BCD; bit 64 toggled
     top->rtc[0] = 0x03120000;      // day 03, hours 12, minutes 00, seconds 00
@@ -657,6 +665,10 @@ int Sim::run()
     tswaps = opt.tape_swaps;
     while (frame <= opt.stop_frame && !done && !Verilated::gotFinish()) {
         clock();
+        for (auto &j : opt.joys) if (frame == j.first && top->joy != j.second) {
+            top->joy = j.second;
+            if (!opt.quiet) fprintf(stderr, "[sim] frame %u: joystick %03X\n", frame, j.second);
+        }
         if (!tswaps.empty() && frame >= tswaps.begin()->first) {
             std::string f = tswaps.begin()->second;
             tswaps.erase(tswaps.begin());

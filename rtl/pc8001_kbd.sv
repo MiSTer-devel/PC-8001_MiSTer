@@ -30,6 +30,7 @@ module pc8001_kbd
 	input      [10:0] ps2_key,
 	input             kbd_us,
 	input             sr,             // the SR's row 0Ah
+	input      [87:0] joy_keys,       // rtl/pc8001_joy.sv: row r at bits 8r+7..8r, 1 = pressed
 	input       [3:0] row,
 	output reg  [7:0] data
 );
@@ -307,9 +308,9 @@ end
 
 always @(*) begin
 	data = 8'hFF;
-	if (row <= 4'd9) data = ~m[row];
-	if (row == 4'd10 && sr) data = ~{caps, m10};
-	if (row == 4'd8) data = ~({m[8][7], ov ? ov_sh : (pshift | fshift | imm_sh), m[8][5] | kana, m[8][4:0]});
+	if (row <= 4'd9) data = ~(m[row] | joy_keys[8 * row +: 8]);
+	if (row == 4'd10 && sr) data = ~({caps, m10} | joy_keys[80 +: 8]);
+	if (row == 4'd8) data = ~({m[8][7], ov ? ov_sh : (pshift | fshift | imm_sh), m[8][5] | kana, m[8][4:0]} | joy_keys[64 +: 8]);
 end
 
 endmodule

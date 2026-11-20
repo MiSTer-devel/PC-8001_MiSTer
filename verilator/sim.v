@@ -29,6 +29,8 @@ module top
    output [15:0] AUDIO_R /*verilator public_flat*/,
 
    input  [10:0] ps2_key,
+   input   [9:0] joy,          // --joy: hps_io joystick_0 bits 9-0 (PC8001.sv J1)
+   input  [11:0] joy_cfg,      // --joy-cfg: OSD status[29:18] (Joystick, Diagonals, Button A-C)
    input         tape_turbo,
    input         tape_rewind,
    output        tape_motor /*verilator public_flat*/,
@@ -79,12 +81,20 @@ wire  [7:0] m_R, m_G, m_B;
 assign AUDIO_L = audio;
 assign AUDIO_R = audio;
 
+wire [87:0] joy_keys;
+pc8001_joy joy_map
+(
+   .joy(joy), .mode(joy_cfg[1:0]), .diag(joy_cfg[2]), .a(joy_cfg[5:3]), .b(joy_cfg[8:6]), .c(joy_cfg[11:9]),
+   .keys(joy_keys)
+);
+
 pc8001 pc8001
 (
    .clk_sys(clk_sys),
    .reset(reset),
    .model(model), .n_mode(n_mode), .v2(v2), .ram16k(ram16k), .pcg_on(pcg_on), .rtc(rtc), .kbd_us(kbd_us),
    .ps2_key(ps2_key),
+   .joy_keys(joy_keys),
    .tape_turbo(tape_turbo),
    .tape_rewind(tape_rewind),
    .tape_motor(tape_motor),

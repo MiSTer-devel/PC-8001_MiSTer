@@ -24,6 +24,7 @@ module pc8001 #(
 	input         kbd_us,         // keyboard: US symbols (else JIS positions)
 
 	input  [10:0] ps2_key,
+	input  [87:0] joy_keys,       // OSD joystick as keys (rtl/pc8001_joy.sv)
 
 	input         tape_turbo,     // OSD Tape speed: TURBO x while the motor runs (taken when the motor starts)
 	input         tape_rewind,
@@ -704,6 +705,7 @@ pc8001_kbd kbd
 	.ps2_key(ps2_key),
 	.kbd_us(kbd_us),
 	.sr(sr),
+	.joy_keys(joy_keys),
 	.row(A[3:0]),
 	.data(kbd_dout)
 );

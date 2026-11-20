@@ -52,7 +52,8 @@ assign BUTTONS = 0;
 // Tape per ~/dev2/tape-standard.md and video per ~/dev2/video-standard.md: Tape speed, Tape overlay, Aspect ratio,
 // Scale, Scandoubler Fx and the Input page act at once (status, out of "Changes pending").
 // Status bits: 0 reset, 1 memory, 3 rewind tape, 4 tape speed, 5 tape overlay, 6 PCG, 7 keyboard, 8-9 model,
-// 10-11 mkII/SR mode (N80, N, N80SR), 12-13 scale, 14-16 scandoubler fx, 17 swap Alt/Win, 121-122 aspect ratio.
+// 10-11 mkII/SR mode (N80, N, N80SR), 12-13 scale, 14-16 scandoubler fx, 17 swap Alt/Win,
+// 18-19 joystick, 20 diagonals, 21-23 button A, 24-26 button B, 27-29 button C, 121-122 aspect ratio.
 `include "build_id.v"
 // Tape turbo factor: the Z80 and the deck run TURBO times as fast while the deck plays (rtl/pc8001.sv)
 localparam int TURBO = 5;
@@ -98,6 +99,15 @@ localparam CONF_STR = {
 
 	"P3O[7],Keyboard,JP (positions),US (symbols);",
 	"P3O[17],Swap Alt/Win keys,No,Yes;",
+	"P3-;",
+	// rtl/pc8001_joy.sv: a pad pressing keys (the machine had no joystick port); acts at once
+	"P3O[19:18],Joystick,Off,Numpad,Cursor keys;",
+	"P3O[20],Diagonals,Two keys,Numpad 7-9-1-3;",
+	"P3O[23:21],Button A,Space,Return,SHIFT,Z,X,Numpad 0,Numpad 5;",
+	"P3O[26:24],Button B,Return,Space,SHIFT,Z,X,Numpad 0,Numpad 5;",
+	"P3O[29:27],Button C,SHIFT,Space,Return,Z,X,Numpad 0,Numpad 5;",
+	"J1,A,B,C,Start,Select,STOP;",
+	"jn,A,B,X,Start,Select,L;",
 
 	"I,Tape ready (rewound),Tape too large (512 KB max),Disk too large (512 KB max),No disk unit (boot.rom without disk.rom);",
 	"v,0;",
@@ -108,6 +118,7 @@ wire forced_scandoubler;
 wire   [1:0] buttons;
 wire [127:0] status;
 wire  [10:0] ps2_key;
+wire  [31:0] joy0;
 
 // Input: Swap Alt/Win keys (acts at once): left Alt (11h) <-> left Win (E0 1Fh), right Alt (E0 11h) <-> right
 // Win (E0 27h). Left Alt is GRPH and right Alt KANA (rtl/pc8001_kbd.sv), so with Yes the Win keys are.
@@ -174,6 +185,7 @@ hps_io #(.CONF_STR(CONF_STR), .VDNUM(2)) hps_io
 	.info(tape_info),
 
 	.ps2_key(ps2_key),
+	.joystick_0(joy0),
 	.RTC(rtc),
 
 	.ioctl_download(ioctl_download),
@@ -212,6 +224,19 @@ pll pll
 
 wire reset = RESET | status[0] | buttons[1] | (ioctl_download & (ioctl_index[5:0] == 6'd0 || ioctl_index[5:0] == 6'd2)) | am_reset;
 
+// OSD joystick (Input page): pad -> keyboard matrix keys, from status (acts at once)
+wire [87:0] joy_keys;
+pc8001_joy joy
+(
+	.joy(joy0[9:0]),
+	.mode(status[19:18]),
+	.diag(status[20]),
+	.a(status[23:21]),
+	.b(status[26:24]),
+	.c(status[29:27]),
+	.keys(joy_keys)
+);
+
 // The settings the machine runs with, taken from the OSD at every reset
 reg [127:0] cfg;
 always @(posedge clk_sys) if (reset) cfg <= status;
@@ -239,6 +264,7 @@ pc8001 #(.TURBO(TURBO)) pc8001
 	.pcg_on(cfg[6]),
 	.rtc(rtc),
 	.kbd_us(status[7]),
+	.joy_keys(joy_keys),
 
 	.ps2_key(ps2_key_sw),
 
