@@ -96,7 +96,7 @@ one diagonal key (games differ). Cursor keys: Up and Right, with SHIFT for Down 
 SR's own Down / Left keys too). Fire keys differ from game to game, so Button A, B and C each pick one of Space,
 Return, SHIFT, Z, X, Numpad 0, Numpad 5 (defaults Space, Return, SHIFT). Start = Return, Select = Space,
 STOP = STOP. Auto by default; all of it acts at once. Auto: a known tape's own map (tools/tape_db.txt `joy:`, from
-the instruction screens in tools/joy_map.md: e.g. Door Door A = Z, B = X; Itasundorious diagonals 7-9-1-3; Kaeru
+the instruction screens in tools/joy_map.md: e.g. Door Door A = Space (jump), B = Z, C = X; Itasundorious diagonals 7-9-1-3; Kaeru
 Shooter A = Numpad 5), set when the tape is mounted; any other tape: Numpad with the OSD's Diagonals and buttons.
 On the SR its extra row (port 0Ah) also: Tab, Down, Left, HELP = F11, COPY = Print Screen, keypad - and /, CAPS
 (a lock) = SHIFT + Caps Lock.

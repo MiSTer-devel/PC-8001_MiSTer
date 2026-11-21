@@ -431,6 +431,7 @@ tape: @Commercial/80/Arale no Jump Up/Arale No Jump Up (1984)(Enix)(Geimu Kyojin
 title: Arranger mk2
 tape: @Commercial/80/Arranger.cmt
   0: CLOAD"ARRANG"\n
+  1: RUN\n
 title: Cannon Ball mk2
 joy: numpad space
 tape: @Commercial/80/Cannon Ball.t88
@@ -444,9 +445,10 @@ joy: numpad space
 tape: @Commercial/80/Dish Carrier.cmt
   0: MON\n L\n
 title: Door Door mk2
-joy: numpad z x space
+joy: numpad space z x
 tape: @Commercial/80/Door Door.t88
   0: CLOAD"DOOR"\n
+  1: RUN\n
 title: Field Wars mk2
 tape: @Commercial/80/Field Wars.cmt
   0: MON\n L\n
@@ -457,6 +459,7 @@ tape: @Commercial/80/Fireball.cmt
 title: Flappy mk2
 tape: @Commercial/80/Flappy.t88
   0: CLOAD"flappy"\n
+  1: RUN\n
 title: Flicky mk2
 tape: @Commercial/80/Flicky.t88
   0: CLOAD"FLICKY"\n
@@ -464,6 +467,7 @@ tape: @Commercial/80/Flicky.t88
 title: Geimu Kyojin no Uchu Ryoko mk2
 tape: @Commercial/80/Geimu Kyojin no Uchu Ryoko.t88
   0: CLOAD"IPL"\n
+  1: RUN\n
 title: Gunman mk2
 tape: @Commercial/80/Gunman.t88
   0: MON\n L\n
@@ -508,6 +512,7 @@ tape: @Commercial/80/Mag Force.cmt
 title: Magnetic Field mk2
 tape: @Commercial/80/Magnetic Field.cmt
   0: CLOAD"field"\n
+  1: RUN\n
 title: Mister Butterfly mk2
 tape: @Commercial/80/Mister Butterfly.cmt
   0: MON\n L\n
@@ -518,6 +523,7 @@ tape: @Commercial/80/Mystery Mountain.t88
 title: Pac-Man mk2
 tape: @Commercial/80/Pac-Man.t88
   0: CLOAD"pacman"\n
+  1: RUN\n
 title: Power Fail mk2
 tape: @Commercial/80/Power Fail.cmt
   0: MON\n L\n
@@ -557,6 +563,7 @@ tape: @Commercial/80/Slalom.t88
 title: Star Fleet mk2
 tape: @Commercial/80/Star Fleet.cmt
   0: CLOAD"FLEET"\n
+  1: RUN\n
 title: Star Stream mk2
 joy: numpad space
 tape: @Commercial/80/Star Stream.cmt
