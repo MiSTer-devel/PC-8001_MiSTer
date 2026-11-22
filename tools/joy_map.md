@@ -16,7 +16,7 @@ Keys not in today's button list (Space, Return, SHIFT, Z, X, pad 0, pad 5) are m
 | Cannon Ball | Numpad 4 / 6 | Space | | screen |
 | Champion Prowres Special | Numpad (+1 *) | Z, C (**new key**) | | scan |
 | Dish Carrier | Numpad | Space | | screen |
-| Door Door | Numpad 8 2 4 6 | A: Space (jump; user on Mister 11), B: Z / 1 (set), C: X / 3 (reset) | | screen + play |
+| Door Door | Numpad 8 2 4 6 | A: Space (jump; user on Mister 11), B: Z / 1 (set), C: X / 3 (reset) | Return start (pad Start; Space does not start it: sim 2026-11-22) | screen + play |
 | Field Wars | Numpad | Space, X | | scan |
 | Fireball | Numpad | Space | | screen + scan |
 | Flappy | Numpad | Space | | scan |
