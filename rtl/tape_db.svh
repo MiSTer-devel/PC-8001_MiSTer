@@ -156,7 +156,7 @@ function automatic [73:0] db_tape(input [7:0] i);
 	8'd143: db_tape = {13'h140A, 20'd42664, 16'h8307, 10'd300, 4'd2, 2'd1, 1'b0, 8'd0};   // Harvest: @Commercial/80/Harvest.t88
 	8'd144: db_tape = {13'h140A, 20'd13837, 16'h206C, 10'd302, 4'd1, 2'd1, 1'b0, 8'd0};   // Help!: @Commercial/80/Help!.cmt
 	8'd145: db_tape = {13'h160A, 20'd16141, 16'hA5E6, 10'd303, 4'd1, 2'd1, 1'b0, 8'd0};   // Itasundorious: @Commercial/80/Itasundorious.t88
-	8'd146: db_tape = {13'h158A, 20'd10765, 16'h582B, 10'd304, 4'd1, 2'd1, 1'b0, 8'd0};   // Kaeru Shooter: @Commercial/80/Kaeru Shooter.cmt
+	8'd146: db_tape = {13'h160A, 20'd10765, 16'h582B, 10'd304, 4'd1, 2'd1, 1'b0, 8'd0};   // Kaeru Shooter: @Commercial/80/Kaeru Shooter.cmt
 	8'd147: db_tape = {13'h0000, 20'd14861, 16'h4017, 10'd305, 4'd1, 2'd1, 1'b0, 8'd0};   // Kareina Kaito: @Commercial/80/Kareina Kaito.cmt
 	8'd148: db_tape = {13'h140A, 20'd17677, 16'hDBD6, 10'd306, 4'd1, 2'd1, 1'b0, 8'd0};   // Killer Station: @Commercial/80/Killer Station.cmt
 	8'd149: db_tape = {13'h0000, 20'd76262, 16'h1A09, 10'd307, 4'd2, 2'd1, 1'b0, 8'd0};   // Lode Runner: @Commercial/80/Lode Runner.t88

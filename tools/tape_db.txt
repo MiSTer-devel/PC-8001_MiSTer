@@ -488,7 +488,7 @@ joy: numpad diag space
 tape: @Commercial/80/Itasundorious.t88
   0: MON\n L\n
 title: Kaeru Shooter mk2
-joy: numpad pad5
+joy: numpad diag space
 tape: @Commercial/80/Kaeru Shooter.cmt
   0: MON\n L\n
 title: Kareina Kaito mk2

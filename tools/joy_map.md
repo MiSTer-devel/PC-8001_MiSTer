@@ -24,7 +24,7 @@ Keys not in today's button list (Space, Return, SHIFT, Z, X, pad 0, pad 5) are m
 | Harvest | Numpad 8 2 4 6 | Space (trigger) | | screen |
 | Help! | Numpad | Space | | screen + scan |
 | Itasundorious | Numpad, diagonals 7 9 1 3 | Space | | screen |
-| Kaeru Shooter | Numpad 4 / 6 (player 2; player 1 is Z / C) | pad 5 | | screen |
+| Kaeru Shooter | Numpad 1-9 (diagonals 7 9 1 3 on its title screen) | Space (fire, start; pad 5 does not fire: Mister 192, 2026-11-22) | | screen + play |
 | Kareina Kaito | Numpad | Space? | Return | scan |
 | Killer Station | Numpad 4 / 6 | Space (missile) | | screen |
 | Lode Runner | Numpad | ? (dig keys unclear) | many | scan: needs a look |
@@ -128,7 +128,7 @@ BASIC type-ins read INKEY$ (no port reads to scan); most use 2 4 6 8 and Space (
 ## What this means for the core
 
 - Most games: **Numpad + Space** (the OSD defaults). An Auto mode mainly has to flag the exceptions: diagonals
-  (Itasundorious), Z / X (Door Door), pad 5 (Kaeru Shooter), cursor keys.
+  (Itasundorious), Z / X (Door Door), cursor keys.
 - New keys some games need on a button: pad +, pad =, C, top-row digits.
 - Done: OSD Joystick Auto; tape_db.txt `joy:` lines for the 16 screen-confirmed titles above (Auto falls back
   to Numpad + the OSD buttons for the rest).
