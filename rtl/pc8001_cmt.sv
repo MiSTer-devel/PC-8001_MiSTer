@@ -12,7 +12,8 @@
 // sides are 104-126 KB): each byte written with its byte enable, the download waiting meanwhile (ioctl_wait).
 // The player reads through one cached 64-bit word (q is byte ptr of it; ready when the word holds ptr), fetched
 // while a character's time runs, so the bytes keep their timing.
-// TURBO: tick rate multiplier while the deck plays (the CPU runs as many times faster; tape standard).
+// TURBO: tick rate multiplier while the deck plays (the CPU runs as many times faster; tape standard). Not
+// once the tape has ended: Gunman sets the relay bit (30h = 08h) after its own loader stops the motor.
 // Sources: CSCP pc88.cpp play_tape / EVENT_CMT_SEND; the T88 format notes in QUASI88 and CSCP.
 
 module pc8001_cmt #(parameter [28:0] BASE = 29'h06040000,   // DDR3 word address: past the ROM store
@@ -39,6 +40,7 @@ module pc8001_cmt #(parameter [28:0] BASE = 29'h06040000,   // DDR3 word address
 	output reg        dcd = 1,
 
 	output reg        loaded = 0,
+	output            playing,        // the tape has not reached its end (turbo only then)
 	output reg        too_big = 0,
 	output     [19:0] position,
 	output reg [19:0] length = 0,
@@ -158,6 +160,7 @@ reg        rd_wait = 0;
 reg        old_motor = 0;
 
 assign position = ptr;
+assign playing = st != P_END;
 
 always @(posedge clk) begin
 	rx_stb <= 0;

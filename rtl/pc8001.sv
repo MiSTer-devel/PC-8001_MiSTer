@@ -794,7 +794,8 @@ assign tape_motor = port30[3] & ~port30[5];
 
 reg turbo_l = 0;
 always @(posedge clk_sys) if (~tape_motor) turbo_l <= tape_turbo;
-assign tape_turbo_on = turbo_l & tape_motor & tape_loaded;
+wire   tape_playing;
+assign tape_turbo_on = turbo_l & tape_motor & tape_loaded & tape_playing;   // not past the tape's end
 
 wire        dc_busy, dc_ready, dc_rd, dc_we, dab_busy, dab_ready, dab_rd, dab_we;
 wire [28:0] dc_addr, dab_addr;
@@ -821,6 +822,7 @@ pc8001_cmt cmt
 	.rx_byte(rx_byte),
 	.dcd(cmt_dcd),
 	.loaded(tape_loaded),
+	.playing(tape_playing),
 	.too_big(tape_too_big),
 	.position(tape_position),
 	.length(tape_length),
