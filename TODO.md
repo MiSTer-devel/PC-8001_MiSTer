@@ -165,6 +165,13 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       typeins/80/@Commercial/80. Not solved: Moon Patrol (G8F00: Syntax error in 60159), Puckn Boy (no
       headers found), Yonin Mahjong (MON L then CLOAD"MAJ"; untested: CSCP mk2 lacks {CTRL}x), space diamond
       (Syntax error in 20). The 81 @Commercial/88 / 88 tapes: not yet checked on a PC-8801.
+- [ ] Mag Force (.cmt, mkII N80) never loads past the first block on the core (Mister 192 and sim, 2026-11-22):
+      its E4CB block copies the ROM to RAM, patches the cassette routines to 1200 baud (0BFC, 0C37, 0C3F, 0C4F,
+      5DC7) and calls 5DC1, which waits at 5DCD for carrier detect (port 40h bit 2) before reading the 9000h
+      block. The motor never stops (30h = 0Eh, then 1Eh), and a .cmt has no carrier tags, so cmt_dcd stays 0 and
+      the tape plays to its end. CSCP passes that wait somewhere between frames 3000 and 3800 (watch-pc 5DDE
+      twice) and shows the title; the file has no D3 x10 / 9C x6 run (CSCP's check_data_carrier). Find what sets
+      CSCP's usart_dcd there (trace its EVENT_CMT_SEND), then match it in rtl/pc8001_cmt.sv.
 - [ ] Disk hints for the type-in pack: of 56 new disks, ~20 boot by themselves (raw loaders), most N-BASIC disks
       autorun; a few stop at Ok (Dragon'N'Spirit: run"DRASPI"; textgame, Basic Program Shu: several programs).
 

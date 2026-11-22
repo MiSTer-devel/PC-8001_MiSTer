@@ -18,6 +18,8 @@
 #include <deque>
 #include <cstring>
 #include <sys/stat.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 #include "Vtop.h"
 #include "Vtop___024root.h"
@@ -41,6 +43,10 @@ struct Options {
     std::vector<TypeCmd> types;
     std::vector<std::pair<uint32_t, uint32_t>> joys;   // --joy FRAME:BITS (hex): joystick bits from that frame
     uint32_t    joy_cfg = 0;                            // --joy-cfg N: OSD status[29:18]
+    std::vector<std::pair<uint32_t, uint32_t>> joys_rel;  // --joy-rel REL:BITS: from REL frames past the load's end
+    uint32_t    stop_rel = 0;                           // --stop-rel N: end N frames past the load's end
+    // --fork NAME:REL:BITS,...: at the load's end a copy of the run (fork) writes to OUT/NAME with these presses
+    std::vector<std::pair<std::string, std::vector<std::pair<uint32_t, uint32_t>>>> forks;
     uint32_t    type_press = 4, type_release = 4;
     std::string trace_file;               // --trace-cpu
     std::string io_file;                  // --trace-io
@@ -87,6 +93,11 @@ static void usage()
 "                         --basic FILE / --font FILE\n"
 "  --ram16k               16 KB RAM (C000-FFFF) instead of 32 KB\n"
 "  --joy FRAME:BITS      joystick bits (hex: 1 right 2 left 4 down 8 up 10 A 20 B 40 C 80 Start 100 Select 200 STOP) from FRAME\n"
+"  --joy-rel REL:BITS    joystick bits REL frames past the load's end (every --after-motor text typed, then\n"
+"                         the tape at its end for 180 frames or the motor off for 900; prints LOADEND frame=N)\n"
+"  --stop-rel N           end N frames past the load's end\n"
+"  --fork NAME:REL:BITS,...  at the load's end a copy of the run (fork) in OUT/NAME, with these joystick\n"
+"                         changes added (REL frames past the load's end); repeatable\n"
 "  --joy-cfg N           OSD Input rows, status[29:18]: 1-0 Joystick, 2 Diagonals, 5-3 A, 8-6 B, 11-9 C\n"
 "  --pcg                  PCG-8100 connected\n"
 "  --mk2                  PC-8001mkII (boot1.rom = DIR/n80_2.rom + DIR/kanji1.rom, --mk2-dir DIR); --n-mode:\n"
@@ -158,6 +169,21 @@ static bool parse_args(int argc, char **argv, Options &o)
         else if (a == "--type") { uint32_t f; if (!pair("FRAME:TEXT", f, rest)) return false; o.types.push_back({f, rest}); }
         else if (a == "--joy") { uint32_t f; if (!pair("FRAME:BITS", f, rest)) return false; o.joys.push_back({f, (uint32_t)strtoul(rest.c_str(), nullptr, 16)}); }
         else if (a == "--joy-cfg") o.joy_cfg = parse_num(next());
+        else if (a == "--joy-rel") { uint32_t f; if (!pair("REL:BITS", f, rest)) return false; o.joys_rel.push_back({f, (uint32_t)strtoul(rest.c_str(), nullptr, 16)}); }
+        else if (a == "--stop-rel") o.stop_rel = parse_num(next());
+        else if (a == "--fork") {
+            std::string v = next(); size_t c = v.find(':');
+            if (c == std::string::npos) { fprintf(stderr, "--fork NAME:REL:BITS,...\n"); return false; }
+            std::vector<std::pair<uint32_t, uint32_t>> js;
+            std::string r = v.substr(c + 1);
+            while (!r.empty()) {
+                size_t e = r.find(','); std::string one = r.substr(0, e);
+                size_t k = one.find(':');
+                js.push_back({(uint32_t)strtoul(one.substr(0, k).c_str(), nullptr, 10), (uint32_t)strtoul(one.substr(k + 1).c_str(), nullptr, 16)});
+                r = e == std::string::npos ? "" : r.substr(e + 1);
+            }
+            o.forks.push_back({v.substr(0, c), js});
+        }
         else if (a == "--type-rate") { if (!pair("P:R", o.type_press, rest)) return false; o.type_release = parse_num(rest); }
         else if (a == "--screenshot") o.screenshots.insert(parse_num(next()));
         else if (a == "--dump-every") o.dump_every = parse_num(next());
@@ -223,11 +249,13 @@ struct Ps2Event { uint8_t code; bool ext; bool press; };
 
 class Sim {
 public:
-    explicit Sim(const Options &o) : opt(o) { top = new Vtop; }
+    explicit Sim(const Options &o) : opt(o), out_dir(o.out_dir) { top = new Vtop; }
     ~Sim() { top->final(); delete top; }
     int run();
 private:
     const Options &opt;
+    std::string out_dir;                  // --out (a --fork copy: OUT/NAME)
+    std::vector<pid_t> children;
     Vtop     *top;
     uint64_t  cycle = 0, cpu_cycles = 0;
     uint32_t  frame = 0;
@@ -252,6 +280,8 @@ private:
     std::string last_hint;
     int last_machine = 0;
     uint32_t  motor_off_frame = 0, motor_on_frames = 0;
+    uint32_t  load_end = 0, idle_frames = 0;   // --joy-rel / --stop-rel: the frame the load ended
+    std::vector<std::pair<uint32_t, uint32_t>> joys_late;   // --joy-rel, made absolute at the load's end
     std::vector<uint8_t> disks[2];        // the disk images (hps_io S0, S1): 512-byte blocks
     int       sd_state = 0;               // 0 idle, 1 read block, 2 write block
     int       sd_drv = 0;
@@ -495,6 +525,36 @@ void Sim::end_frame()
             printf("[hint] frame %u: machine %s\n", frame, mn[top->hint_machine & 3]); fflush(stdout); last_machine = top->hint_machine;
         }
     }
+    // the load's end: every --after-motor text used, and the deck stopped (or at the tape's end) for 180 frames
+    if (!load_end && (!opt.joys_rel.empty() || opt.stop_rel)) {
+        // the tape at its end for 180 frames, or the deck stopped for 900 (a loader may pause between files)
+        bool at_end = top->tape_length && top->tape_position >= top->tape_length;
+        bool idle = motor_stops >= std::max<size_t>(1, opt.after_motor.size()) && (at_end || !top->tape_motor);
+        idle_frames = idle ? idle_frames + 1 : 0;
+        if (idle_frames >= (at_end ? 180u : 900u)) {
+            load_end = frame;
+            printf("LOADEND frame=%u\n", frame); fflush(stdout);
+            for (auto &j : opt.joys_rel) joys_late.push_back({frame + j.first, j.second});
+            fflush(stdout); fflush(stderr); if (flog) fflush(flog);
+            for (auto &fk : opt.forks) {
+                pid_t pid = fork();
+                if (pid < 0) { perror("fork"); continue; }
+                if (pid > 0) { children.push_back(pid); continue; }
+                // the copy: its own output folder, frame log and presses
+                children.clear();
+                out_dir = opt.out_dir + "/" + fk.first;
+                mkdir_p(out_dir);
+                if (flog) {
+                    fclose(flog);
+                    flog = fopen((out_dir + "/frames.csv").c_str(), "w");
+                    if (flog) fprintf(flog, "frame,fb_hash,cpu_cycles,pc\n");
+                }
+                for (auto &j : fk.second) joys_late.push_back({frame + j.first, j.second});
+                break;
+            }
+        }
+    }
+    if (opt.stop_rel && load_end && frame >= load_end + opt.stop_rel) done = true;
     if (opt.tape_end_stop && motor_stops && motor_stops >= opt.after_motor.size() && !top->tape_motor &&
         frame - motor_off_frame >= opt.tape_end_stop) done = true;
     frame++;
@@ -517,7 +577,7 @@ void Sim::write_png(uint32_t f)
 {
     if (fb_w == 0 || fb_h == 0) { fprintf(stderr, "[sim] frame %u: no picture\n", f); return; }
     char name[1024];
-    snprintf(name, sizeof(name), "%s/frame_%06u.png", opt.out_dir.c_str(), f);
+    snprintf(name, sizeof(name), "%s/frame_%06u.png", out_dir.c_str(), f);
     if (!stbi_write_png(name, fb_w, fb_h, 3, fb.data(), fb_w * 3)) {
         fprintf(stderr, "cannot write %s\n", name);
         exit_code = 3;
@@ -669,6 +729,10 @@ int Sim::run()
             top->joy = j.second;
             if (!opt.quiet) fprintf(stderr, "[sim] frame %u: joystick %03X\n", frame, j.second);
         }
+        for (auto &j : joys_late) if (frame == j.first && top->joy != j.second) {
+            top->joy = j.second;
+            if (!opt.quiet) fprintf(stderr, "[sim] frame %u: joystick %03X\n", frame, j.second);
+        }
         if (!tswaps.empty() && frame >= tswaps.begin()->first) {
             std::string f = tswaps.begin()->second;
             tswaps.erase(tswaps.begin());
@@ -687,7 +751,7 @@ int Sim::run()
     }
     if (opt.tape_end_stop) {
         char name[1024];
-        snprintf(name, sizeof(name), "%s/last.png", opt.out_dir.c_str());
+        snprintf(name, sizeof(name), "%s/last.png", out_dir.c_str());
         printf("TAPE frames=%u motor_on_frames=%u motor_stops=%zu pos=%u len=%u\n", frame, motor_on_frames,
                motor_stops, (unsigned)top->tape_position, (unsigned)top->tape_length);
     }
@@ -709,6 +773,7 @@ int Sim::run()
     }
     wav_close();
     if (flog) fclose(flog);
+    for (pid_t c : children) { int st; waitpid(c, &st, 0); }
     if (ftrace) fclose(ftrace);
     if (fio) fclose(fio);
     if (fprn) fclose(fprn);

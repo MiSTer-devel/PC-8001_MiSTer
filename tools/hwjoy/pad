@@ -1,0 +1,3 @@
+#!/bin/sh
+# pad CMD...: send pad commands to tools/mister_pad.py serving on the MiSTer (ssh alias MISTER_SSH, default mister)
+exec ssh "${MISTER_SSH:-mister}" "python3 /media/fat/Scripts/mister_pad.py send $*"

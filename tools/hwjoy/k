@@ -1,0 +1,4 @@
+#!/bin/sh
+# KVMS for the test MiSTer (MISTER_IP / MISTER_STREAM override 192)
+exec /Applications/MiSTerKVMS.app/Contents/MacOS/misterkvms-cli --mister "${MISTER_IP:-10.0.2.192}" \
+     --stream "${MISTER_STREAM:-mkvm://10.0.2.128/Mister%20192}" "$@"
