@@ -443,6 +443,7 @@ title: Champion Prowres Special mk2
 tape: @Commercial/80/Champion Prowres Special.t88
   0: CLOAD"champ"\n
   1: RUN\n
+play: {WAIT60}1
 title: Dish Carrier mk2
 joy: numpad space
 tape: @Commercial/80/Dish Carrier.cmt
@@ -467,6 +468,7 @@ title: Flicky mk2
 tape: @Commercial/80/Flicky.t88
   0: CLOAD"FLICKY"\n
   1: RUN\n
+play: {WAIT60}1
 title: Geimu Kyojin no Uchu Ryoko mk2
 tape: @Commercial/80/Geimu Kyojin no Uchu Ryoko.t88
   0: CLOAD"IPL"\n

@@ -54,7 +54,9 @@ def sim_text(step):
 def sim_args(t, extra):
     tp = t['tapes'][0]
     z = tp['all']
-    a = [VTOP, '--tape', os.path.abspath(tp['path']), '--tape-turbo', '--stop-at-frame', '40000']
+    # the load's end: the motor off 3000 frames (Champion Prowres' BASIC starts its own loader 1000 frames after
+    # CLOAD stopped the motor)
+    a = [VTOP, '--tape', os.path.abspath(tp['path']), '--tape-turbo', '--stop-at-frame', '60000', '--load-idle', '3000']
     if 'mk2' in t['flags']:
         a.append('--mk2')
     if 'mk2n' in t['flags']:

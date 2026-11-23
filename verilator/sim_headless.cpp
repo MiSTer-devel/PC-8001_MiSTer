@@ -41,6 +41,7 @@ struct Options {
     std::string out_dir = "out";
     std::string frame_log;
     std::vector<TypeCmd> types;
+    uint32_t    load_idle = 900;                        // --load-idle N: motor-off frames that end the load
     std::vector<TypeCmd> types_rel;                     // --type-rel REL:TEXT: typed REL frames past the load's end
     std::vector<std::pair<uint32_t, uint32_t>> joys;   // --joy FRAME:BITS (hex): joystick bits from that frame
     uint32_t    joy_cfg = 0;                            // --joy-cfg N: OSD status[29:18]
@@ -96,9 +97,10 @@ static void usage()
 "  --ram16k               16 KB RAM (C000-FFFF) instead of 32 KB\n"
 "  --joy FRAME:BITS      joystick bits (hex: 1 right 2 left 4 down 8 up 10 A 20 B 40 C 80 Start 100 Select 200 STOP) from FRAME\n"
 "  --joy-rel REL:BITS    joystick bits REL frames past the load's end (every --after-motor text typed, then\n"
-"                         the tape at its end for 180 frames or the motor off for 900; prints LOADEND frame=N)\n"
+"                         the tape at its end for 180 frames or the motor off --load-idle frames; prints LOADEND frame=N)\n"
 "  --type-rel REL:TEXT    type TEXT REL frames past the load's end (as --type)\n"
 "  --stop-rel N           end N frames past the load's end\n"
+"  --load-idle N          the load's end: the motor off N frames (default 900; the tape at its end: 180)\n"
 "  --fork NAME:REL:BITS,...  at the load's end a copy of the run (fork) in OUT/NAME, with these joystick\n"
 "                         changes added (REL frames past the load's end); repeatable\n"
 "  --joy-cfg N           OSD Input rows, status[29:18]: 1-0 Joystick, 2 Diagonals, 5-3 A, 8-6 B, 11-9 C\n"
@@ -171,6 +173,7 @@ static bool parse_args(int argc, char **argv, Options &o)
         else if (a == "--stop-at-frame") o.stop_frame = parse_num(next());
         else if (a == "--quiet") o.quiet = true;
         else if (a == "--type") { uint32_t f; if (!pair("FRAME:TEXT", f, rest)) return false; o.types.push_back({f, rest}); }
+        else if (a == "--load-idle") o.load_idle = parse_num(next());
         else if (a == "--type-rel") { uint32_t f; if (!pair("REL:TEXT", f, rest)) return false; o.types_rel.push_back({f, rest}); }
         else if (a == "--joy") { uint32_t f; if (!pair("FRAME:BITS", f, rest)) return false; o.joys.push_back({f, (uint32_t)strtoul(rest.c_str(), nullptr, 16)}); }
         else if (a == "--joy-cfg") o.joy_cfg = parse_num(next());
@@ -537,7 +540,7 @@ void Sim::end_frame()
         bool at_end = top->tape_length && top->tape_position >= top->tape_length;
         bool idle = motor_stops >= std::max<size_t>(1, opt.after_motor.size()) && (at_end || !top->tape_motor);
         idle_frames = idle ? idle_frames + 1 : 0;
-        if (idle_frames >= (at_end ? 180u : 900u)) {
+        if (idle_frames >= (at_end ? 180u : opt.load_idle)) {
             load_end = frame;
             printf("LOADEND frame=%u\n", frame); fflush(stdout);
             for (auto &j : opt.joys_rel) joys_late.push_back({frame + j.first, j.second});

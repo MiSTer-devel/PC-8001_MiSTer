@@ -7,7 +7,8 @@
 // port 30h bits 5-4 = 01) and the 8251 mode's bits per character (start, 5-8 data, parity, 1/1.5/2 stop).
 // Carrier detect (port 40h bit 2, as CSCP's usart_dcd): set while a carrier tag plays and while the deck is
 // stopped, clear while data plays. A .cmt has no carrier tags: it gets a 1 s leader (carrier) at the start and
-// each time the motor starts again (a CLOAD, then MON L of the next block).
+// each time the motor starts again (a CLOAD, then MON L of the next block), and before a machine-code block that
+// or BASIC file that follows a machine-code block's end record (3A 00 00, then 3A or D3).
 // The image is loaded whole (ioctl index 1; index bits 7-6 = 1 for .t88) into DDR3, up to 512 KB (Pac Land's
 // sides are 104-126 KB): each byte written with its byte enable, the download waiting meanwhile (ioctl_wait).
 // The player reads through one cached 64-bit word (q is byte ptr of it; ready when the word holds ptr), fetched
@@ -158,6 +159,7 @@ reg [15:0] left = 0;            // data bytes left in the tag
 reg  [7:0] tcnt = 0;
 reg        rd_wait = 0;
 reg        old_motor = 0;
+reg [23:0] hist = 0;            // .cmt: the last three bytes played (a monitor block's end record 3A 00 00)
 
 assign position = ptr;
 assign playing = st != P_END;
@@ -180,10 +182,12 @@ always @(posedge clk) begin
 		st <= P_START;
 	end
 	else if (rewind) st <= P_START;
-	else if (motor & ~old_motor & loaded & ~is_t88 & (st == P_DATA)) begin
+	else if (motor & ~old_motor & loaded & ~is_t88 & ((st == P_DATA) | (st == P_CARRIER))) begin
+		// (also when the motor stopped in a leader: a whole one again)
 		// .cmt, the motor starting again between blocks: a leader before the next block
 		st <= P_CARRIER;
 		cwait <= 32'd4800;
+		hist <= 0;
 	end
 	else if (motor & loaded) begin
 		case (st)
@@ -196,6 +200,7 @@ always @(posedge clk) begin
 			left <= 16'hFFFF;
 			k <= 0;
 			rd_wait <= 0;
+			hist <= 0;
 		end
 
 		// T88 tag header: tag (2), length (2)
@@ -262,6 +267,15 @@ always @(posedge clk) begin
 		P_DATA: begin
 			if (ptr >= length) st <= P_END;
 			else if (left == 0) st <= P_TAG;
+			else if (~is_t88 & ready & (hist == 24'h3A0000) & ((q == 8'h3A) | (q == 8'hD3))) begin
+				// .cmt: a monitor block's end record, then the next file's header (3A: machine code, D3: BASIC):
+				// the leader a real tape has there. Mag Force's loader waits for carrier detect before reading its
+				// 9000h block; the monitor, stopping the motor late (55 bytes at 5x), stops it in the leader
+				// instead of in the next header (Bakuso! 5000 Mile's CLOAD"RACE after its machine code)
+				hist <= 0;
+				st <= P_CARRIER;
+				cwait <= 32'd4800;
+			end
 			else begin
 				dcd <= 0;
 				if (tick) begin
@@ -276,6 +290,7 @@ always @(posedge clk) begin
 		P_EMIT: if (ready) begin
 			rx_byte <= q;
 			rx_stb <= 1;
+			hist <= {hist[15:0], q};
 			ptr <= ptr + 1'd1;
 			if (is_t88) left <= left - 1'd1;
 			st <= P_DATA;

@@ -165,16 +165,17 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       typeins/80/@Commercial/80. Not solved: Moon Patrol (G8F00: Syntax error in 60159), Puckn Boy (no
       headers found), Yonin Mahjong (MON L then CLOAD"MAJ"; untested: CSCP mk2 lacks {CTRL}x), space diamond
       (Syntax error in 20). The 81 @Commercial/88 / 88 tapes: not yet checked on a PC-8801.
-- [ ] Mag Force (.cmt, mkII N80) never loads past the first block on the core (Mister 192 and sim, 2026-11-22):
-      its E4CB block copies the ROM to RAM, patches the cassette routines to 1200 baud (0BFC, 0C37, 0C3F, 0C4F,
-      5DC7) and calls 5DC1, which waits at 5DCD for carrier detect (port 40h bit 2) before reading the 9000h
-      block. The motor never stops (30h = 0Eh, then 1Eh), and a .cmt has no carrier tags, so cmt_dcd stays 0 and
-      the tape plays to its end. CSCP passes that wait somewhere between frames 3000 and 3800 (watch-pc 5DDE
-      twice) and shows the title; the file has no D3 x10 / 9C x6 run (CSCP's check_data_carrier). Find what sets
-      CSCP's usart_dcd there (trace its EVENT_CMT_SEND), then match it in rtl/pc8001_cmt.sv.
-- [ ] Flicky and Champion Prowres Special (.t88, mk2) stop at their own "TAPE LOADER V2.2 / FOUND:... / NOW
-      LOADING" screen in the sim (tools/joy_sim.py, 2026-11-23): the PC loops in 01E9-01FB for good and the
-      title never shows. Check them in CSCP and on hardware; maybe the same 1200-baud / carrier wait as Mag Force.
+- [x] Mag Force (.cmt, mkII N80) never loaded past its first block (2026-11-22). Its loader waits at 5DCD for
+      carrier detect before its 9000h block; a .cmt has no leaders. CSCP passed only because its 8251 queues
+      every byte (256 KB FIFO, not cleared by the 8251 reset) and raises DCD at the tape's end. rtl/pc8001_cmt.sv
+      (2026-11-23): a .cmt plays a 1 s leader after a machine-code end record (3A 00 00) followed by 3A or D3, and
+      a whole leader at every motor start. Sim: Mag Force title; Bakuso! 5000 Mile (CLOAD"RACE right after its
+      machine code: the motor now stops in the leader, not 55 bytes into the header) and Yonin Mahjong (finds MAJ)
+      load too; Arranger (mkII) now reaches its title and demo (was TAPE READ ERROR). Radar Snaky (MON L) still
+      hangs at "GPL is in process" with the motor on. Check on hardware.
+- [x] Flicky and Champion Prowres Special (.t88, mk2) seemed stuck at "TAPE LOADER V2.2 / NOW LOADING": they load
+      the whole tape themselves (Prowres' motor stops at frame 12806 in the sim) and then ask SELECT YOUR
+      COMPUTER (tape_db play: 1), as in CSCP. joy_sim ended the load too early (motor off 900 frames; now 3000).
 - [ ] OSD Joystick Auto in the sim (tools/joy_sim.py, runs/joysim_all/report.md, 2026-11-23): of 85 single-tape
       titles, about 50 react to directions and buttons. No reaction yet:
       Marine War (in game; scan: A D W K L N: letter keys the joy map cannot send), Tree (in game, keys unknown),
