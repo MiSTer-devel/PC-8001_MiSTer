@@ -41,6 +41,7 @@ struct Options {
     std::string out_dir = "out";
     std::string frame_log;
     std::vector<TypeCmd> types;
+    std::vector<TypeCmd> types_rel;                     // --type-rel REL:TEXT: typed REL frames past the load's end
     std::vector<std::pair<uint32_t, uint32_t>> joys;   // --joy FRAME:BITS (hex): joystick bits from that frame
     uint32_t    joy_cfg = 0;                            // --joy-cfg N: OSD status[29:18]
     std::vector<std::pair<uint32_t, uint32_t>> joys_rel;  // --joy-rel REL:BITS: from REL frames past the load's end
@@ -95,6 +96,7 @@ static void usage()
 "  --joy FRAME:BITS      joystick bits (hex: 1 right 2 left 4 down 8 up 10 A 20 B 40 C 80 Start 100 Select 200 STOP) from FRAME\n"
 "  --joy-rel REL:BITS    joystick bits REL frames past the load's end (every --after-motor text typed, then\n"
 "                         the tape at its end for 180 frames or the motor off for 900; prints LOADEND frame=N)\n"
+"  --type-rel REL:TEXT    type TEXT REL frames past the load's end (as --type)\n"
 "  --stop-rel N           end N frames past the load's end\n"
 "  --fork NAME:REL:BITS,...  at the load's end a copy of the run (fork) in OUT/NAME, with these joystick\n"
 "                         changes added (REL frames past the load's end); repeatable\n"
@@ -167,6 +169,7 @@ static bool parse_args(int argc, char **argv, Options &o)
         else if (a == "--stop-at-frame") o.stop_frame = parse_num(next());
         else if (a == "--quiet") o.quiet = true;
         else if (a == "--type") { uint32_t f; if (!pair("FRAME:TEXT", f, rest)) return false; o.types.push_back({f, rest}); }
+        else if (a == "--type-rel") { uint32_t f; if (!pair("REL:TEXT", f, rest)) return false; o.types_rel.push_back({f, rest}); }
         else if (a == "--joy") { uint32_t f; if (!pair("FRAME:BITS", f, rest)) return false; o.joys.push_back({f, (uint32_t)strtoul(rest.c_str(), nullptr, 16)}); }
         else if (a == "--joy-cfg") o.joy_cfg = parse_num(next());
         else if (a == "--joy-rel") { uint32_t f; if (!pair("REL:BITS", f, rest)) return false; o.joys_rel.push_back({f, (uint32_t)strtoul(rest.c_str(), nullptr, 16)}); }
@@ -526,7 +529,7 @@ void Sim::end_frame()
         }
     }
     // the load's end: every --after-motor text used, and the deck stopped (or at the tape's end) for 180 frames
-    if (!load_end && (!opt.joys_rel.empty() || opt.stop_rel)) {
+    if (!load_end && (!opt.joys_rel.empty() || !opt.types_rel.empty() || opt.stop_rel)) {
         // the tape at its end for 180 frames, or the deck stopped for 900 (a loader may pause between files)
         bool at_end = top->tape_length && top->tape_position >= top->tape_length;
         bool idle = motor_stops >= std::max<size_t>(1, opt.after_motor.size()) && (at_end || !top->tape_motor);
@@ -535,6 +538,7 @@ void Sim::end_frame()
             load_end = frame;
             printf("LOADEND frame=%u\n", frame); fflush(stdout);
             for (auto &j : opt.joys_rel) joys_late.push_back({frame + j.first, j.second});
+            for (auto &t : opt.types_rel) schedule_text(frame + t.frame, t.text);
             fflush(stdout); fflush(stderr); if (flog) fflush(flog);
             for (auto &fk : opt.forks) {
                 pid_t pid = fork();

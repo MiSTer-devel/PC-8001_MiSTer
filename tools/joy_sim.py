@@ -2,7 +2,7 @@
 """Joystick check of the tape titles in the headless sim (OSD Joystick = Auto): does each game react to the pad?
 
 For each title of tools/tape_db.txt (one tape; not pc88 / fails) one sim run, copied at the load's end (sim --fork):
-  base: load with the hint's steps; past the load's end (sim LOADEND) hold A, Start, A 90 frames each (start), nothing more
+  base: load with the hint's steps; past the load's end (sim LOADEND) hold A, Start, A 90 frames each (start; after the title's play: keys, if any), nothing more
   dirs: as base, then hold right, left, up, down in turn
   btns: as base, then press A, B, C in turn (24 frames on, 6 off, over each input's window)
 The sim is deterministic, so the first frame where dirs / btns differ from base is the first input the game
@@ -11,7 +11,7 @@ reacted to. Writes OUT/TITLE/ (base frame log), OUT/TITLE/{dirs,btns}/ (frame lo
 
   tools/joy_sim.py --pack refs/software/tape_pack/80 --out runs/joysim [--only REGEX] [--jobs 12]
 """
-import argparse, os, re, subprocess, sys, concurrent.futures as cf
+import argparse, glob, json, os, re, subprocess, sys, concurrent.futures as cf
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -24,6 +24,20 @@ START = 300                 # past the load's end: A, Start, A held 90 frames ea
 FIRST = START + 600         # first test input
 GROUPS = {'dirs': ['right', 'left', 'up', 'down'], 'btns': ['a', 'b', 'c']}
 END = FIRST + 4 * (HOLD + GAP)
+
+
+def play_len(t):
+    """frames the title's play: keys take (8 a key, {WAITn} n)"""
+    n = 0
+    for tok in re.findall(r'\{[^}]*\}|\\.|.', t.get('play', '')):
+        m = re.match(r'\{WAIT(\d+)\}', tok)
+        n += int(m.group(1)) if m else 8
+    return n
+
+
+def wait(t):
+    """frames from the load's end to the start presses' place: the title's wait: and its play: keys"""
+    return t.get('wait', 0) + play_len(t)
 
 
 def sim_text(step):
@@ -47,7 +61,9 @@ def sim_args(t, extra):
     last = max(z) if z else 0
     for k in range(1, last + 1):
         a += ['--after-motor', ''.join(sim_text(s) for s in z.get(k, []))]
-    w = t.get('wait', 0)
+    w = wait(t)
+    if t.get('play'):           # the title's own start keys (tape_db play:), then A, Start, A
+        a += ['--type-rel', '%d:%s' % (t.get('wait', 0) + START, t['play'])]
     for f, b in ((START, 0x10), (START + 100, 0x80), (START + 200, 0x10)):   # start: A, Start (Return: Door Door), A
         a += ['--joy-rel', '%d:%x' % (w + f, b), '--joy-rel', '%d:0' % (w + f + 90)]
     return a + extra + ['--stop-rel', str(w + END + 30)]
@@ -56,7 +72,7 @@ def sim_args(t, extra):
 def run(t, d):
     """one sim process: the base run in D, its copies at the load's end (sim --fork) in D/dirs and D/btns"""
     os.makedirs(d, exist_ok=True)
-    w = t.get('wait', 0)
+    w = wait(t)
     extra = ['--frame-log', os.path.join(d, 'frames.csv'), '--out', d, '--quiet', '--dump-every', '10']
     for kind, names in GROUPS.items():
         js = []
@@ -98,7 +114,7 @@ def which(t, kind, le, f):
     """the input whose window (its hold and the gap after it) holds frame f"""
     if f is None:
         return '-'
-    rel = f - le - t.get('wait', 0) - FIRST
+    rel = f - le - wait(t) - FIRST
     if rel < 0:
         return 'before'
     i = rel // (HOLD + GAP)
@@ -108,7 +124,7 @@ def which(t, kind, le, f):
 
 def sheet(dirp, le, t):
     """dirs then btns: a frame every 30 over the input window"""
-    w = t.get('wait', 0)
+    w = wait(t)
     pics = []
     for kind in ('dirs', 'btns'):
         n = len(GROUPS[kind])
@@ -141,6 +157,7 @@ def check(t, out):
     row = {'title': t['title'], 'dir': name, 'loadend': le, 'joy': t.get('joy')}
     if le is None:
         row['note'] = 'no load end'
+        save(row, out)
         return row
     b = hashes(os.path.join(d, 'frames.csv'))
     for kind in ('dirs', 'btns'):
@@ -148,11 +165,17 @@ def check(t, out):
         f = first_diff(b, o, le)
         row[kind] = which(t, kind, le, f)
     # does the game change the screen on its own over the input window (base)?
-    w = t.get('wait', 0)
+    w = wait(t)
     win = [b.get(f) for f in range(le + w + FIRST, le + w + END)]
     row['still'] = len(set(win)) <= 1
     row['sheet'] = sheet(d, le, t)
+    save(row, out)
     return row
+
+
+def save(row, out):
+    with open(os.path.join(out, row['dir'], 'row.json'), 'w') as fh:
+        json.dump(row, fh)
 
 
 def main():
@@ -167,15 +190,15 @@ def main():
     sel = [t for t in titles if len(t['tapes']) == 1 and not (t['flags'] & {'pc88', 'fails'})
            and (not args.only or re.search(args.only, t['title'], re.I))]
     print('%d titles' % len(sel), flush=True)
-    rows = []
     with cf.ThreadPoolExecutor(args.jobs) as ex:
         futs = {ex.submit(check, t, args.out): t for t in sel}
         for f in cf.as_completed(futs):
             r = f.result()
-            rows.append(r)
             print('%-28s loadend %-6s dirs %-12s btns %-12s %s' % (r['title'], r['loadend'], r.get('dirs'),
                   r.get('btns'), r.get('note', '')), flush=True)
-    rows.sort(key=lambda r: r['title'].lower())
+    # the report: every title checked into OUT so far (OUT/*/row.json), not only this run's
+    rows = sorted((json.load(open(p)) for p in glob.glob(os.path.join(args.out, '*', 'row.json'))),
+                  key=lambda r: r['title'].lower())
     with open(os.path.join(args.out, 'report.md'), 'w') as fh:
         fh.write('# Joystick (Auto) in the sim: first input each game reacted to\n\n')
         fh.write('dirs: right, left, up, down held %d frames each; btns: A, B, C. "-": no reaction; '

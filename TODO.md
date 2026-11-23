@@ -172,6 +172,15 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       the tape plays to its end. CSCP passes that wait somewhere between frames 3000 and 3800 (watch-pc 5DDE
       twice) and shows the title; the file has no D3 x10 / 9C x6 run (CSCP's check_data_carrier). Find what sets
       CSCP's usart_dcd there (trace its EVENT_CMT_SEND), then match it in rtl/pc8001_cmt.sv.
+- [ ] Flicky and Champion Prowres Special (.t88, mk2) stop at their own "TAPE LOADER V2.2 / FOUND:... / NOW
+      LOADING" screen in the sim (tools/joy_sim.py, 2026-11-23): the PC loops in 01E9-01FB for good and the
+      title never shows. Check them in CSCP and on hardware; maybe the same 1200-baud / carrier wait as Mag Force.
+- [ ] OSD Joystick Auto in the sim (tools/joy_sim.py, runs/joysim_all/report.md, 2026-11-23): of 85 single-tape
+      titles, about 50 react to directions and buttons. No reaction yet:
+      Marine War (in game; scan: A D W K L N: letter keys the joy map cannot send), Tree (in game, keys unknown),
+      Stack Invader (key screen, never starts), Kumo Vader, Hae Uchiotoshi, Rocket Bomb, Jack Tiger, Space Alien.
+      Octopus, Random Walker Fireman, Shinsetsu Natsunojin: F1 is KEY 1 = "mon" L "GC000" (the BASIC loads the
+      next block itself), so tape_db needs the tape to play on after F1, not a start key.
 - [ ] Disk hints for the type-in pack: of 56 new disks, ~20 boot by themselves (raw loaders), most N-BASIC disks
       autorun; a few stop at Ok (Dragon'N'Spirit: run"DRASPI"; textgame, Basic Program Shu: several programs).
 

@@ -58,6 +58,7 @@ tape: Alien Planet (PiO).t88
 title: Amoeba Attack (Technopolis)
 tape: Amoeba Attack (Technopolis).t88
   1: GDE84\n
+play: {WAIT60}C{WAIT60}N
 title: Asteroid Outlaw (PiO)
 tape: Asteroid Outlaw (PiO).t88
   1: GC000\n
@@ -73,6 +74,7 @@ tape: Drive My PC (Popcom).t88
 title: Marine War (PiO)
 tape: Marine War (Bugfixed) (PiO).t88
   1: GE518\n
+play: {WAIT60}N
 title: Phantom IV (Mycomp BASIC)
 tape: Phantom IV (Mycomp BASIC).t88
   1: GD000\n
@@ -384,6 +386,7 @@ title: Tree (Shintaro Ogawa) mk2
 tape: Tree (Shintaro Ogawa).t88
   0: CLOAD"TREE"\n
   1: RUN\n
+play: {WAIT60}S
 title: GuGuGanmo Yakitori Panic mk2
 tape: GuGuGanmo Yakitori Panic.t88
   0: MON\n L\n
