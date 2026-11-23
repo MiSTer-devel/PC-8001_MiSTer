@@ -35,9 +35,14 @@ def play_len(t):
     return n
 
 
+def loads_more(t):
+    """play: keys that load more of the tape (Octopus, Random Walker: F1 types mon / L / GC000)"""
+    return '{F1}' in t.get('play', '')
+
+
 def wait(t):
     """frames from the load's end to the start presses' place: the title's wait: and its play: keys"""
-    return t.get('wait', 0) + play_len(t)
+    return t.get('wait', 0) + (0 if loads_more(t) else play_len(t))
 
 
 def sim_text(step):
@@ -59,10 +64,13 @@ def sim_args(t, extra):
     if z.get(0):
         a += ['--type', '300:' + ''.join(sim_text(s) for s in z[0])]
     last = max(z) if z else 0
-    for k in range(1, last + 1):
-        a += ['--after-motor', ''.join(sim_text(s) for s in z.get(k, []))]
+    steps = [''.join(sim_text(s) for s in z.get(k, [])) for k in range(1, last + 1)]
+    if loads_more(t) and steps:   # F1 = KEY 1 "mon" L "GC000": typed after the last step, so the load's end waits for that load
+        steps[-1] += t['play']
+    for st in steps:
+        a += ['--after-motor', st]
     w = wait(t)
-    if t.get('play'):           # the title's own start keys (tape_db play:), then A, Start, A
+    if t.get('play') and not loads_more(t):   # the title's own start keys (tape_db play:), then A, Start, A
         a += ['--type-rel', '%d:%s' % (t.get('wait', 0) + START, t['play'])]
     for f, b in ((START, 0x10), (START + 100, 0x80), (START + 200, 0x10)):   # start: A, Start (Return: Door Door), A
         a += ['--joy-rel', '%d:%x' % (w + f, b), '--joy-rel', '%d:0' % (w + f + 90)]

@@ -179,8 +179,8 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       titles, about 50 react to directions and buttons. No reaction yet:
       Marine War (in game; scan: A D W K L N: letter keys the joy map cannot send), Tree (in game, keys unknown),
       Stack Invader (key screen, never starts), Kumo Vader, Hae Uchiotoshi, Rocket Bomb, Jack Tiger, Space Alien.
-      Octopus, Random Walker Fireman, Shinsetsu Natsunojin: F1 is KEY 1 = "mon" L "GC000" (the BASIC loads the
-      next block itself), so tape_db needs the tape to play on after F1, not a start key.
+      (Octopus and the two Random Walker titles: F1 is KEY 1 = "mon" L "GC000", the BASIC loading its next
+      block; joy_sim types such play: keys after the last step, and all three now react.)
 - [ ] Disk hints for the type-in pack: of 56 new disks, ~20 boot by themselves (raw loaders), most N-BASIC disks
       autorun; a few stop at Ok (Dragon'N'Spirit: run"DRASPI"; textgame, Basic Program Shu: several programs).
 
