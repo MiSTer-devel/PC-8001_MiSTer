@@ -99,6 +99,7 @@ localparam CONF_STR = {
 
 	"P3O[7],Keyboard,JP (positions),US (symbols);",
 	"P3O[17],Swap Alt/Win keys,No,Yes;",
+	"P3O[30],Arrow keys,Cursor,Numpad 8/2/4/6;",
 	"P3-;",
 	// rtl/pc8001_joy.sv: a pad pressing keys (the machine had no joystick port); acts at once
 	"P3O[19:18],Joystick,Auto,Numpad,Cursor keys,Off;",
@@ -265,6 +266,7 @@ pc8001 #(.TURBO(TURBO)) pc8001
 	.pcg_on(cfg[6]),
 	.rtc(rtc),
 	.kbd_us(status[7]),
+	.arrows_pad(status[30]),
 	.joy_keys(joy_keys),
 
 	.ps2_key(ps2_key_sw),

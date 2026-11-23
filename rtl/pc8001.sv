@@ -22,6 +22,7 @@ module pc8001 #(
 	input         pcg_on,         // PCG-8100 connected
 	input  [64:0] rtc,            // hps_io RTC, for the uPD1990A
 	input         kbd_us,         // keyboard: US symbols (else JIS positions)
+	input         arrows_pad,     // the arrow keys as pad 8 2 4 6 (else the cursor keys)
 
 	input  [10:0] ps2_key,
 	input  [87:0] joy_keys,       // OSD joystick as keys (rtl/pc8001_joy.sv)
@@ -704,6 +705,7 @@ pc8001_kbd kbd
 	.reset(reset),
 	.ps2_key(ps2_key),
 	.kbd_us(kbd_us),
+	.arrows_pad(arrows_pad),
 	.sr(sr),
 	.joy_keys(joy_keys),
 	.row(A[3:0]),

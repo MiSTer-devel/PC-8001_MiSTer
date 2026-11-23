@@ -83,11 +83,12 @@ pixel-identical to CSCP (tools/cscp_suite.sh). Not yet tried on a MiSTer.
 OSD (~/dev2/osd-standard.md): Drive 1 / Drive 2 (.d88, empty at each core start), Tape (.cmt/.t88/.cas), Memory Image (.n80), Expansion
 ROM (8 KB at 6000h, resets), Load ROM (boot.rom); Memory 32/16 KB (the PC-8001 only); Machine: Model PC-8001 / PC-8001mkII /
 PC-8001mkIISR, Mode N80 / N / N80SR (mkII, SR), PCG-8100, Tape speed, Rewind; Video: Aspect ratio, Scale,
-Scandoubler Fx, Tape overlay; Input: Keyboard JP/US, Swap Alt/Win keys, Joystick, Diagonals, Button A-C. Model, Mode, Memory and PCG-8100 apply at
+Scandoubler Fx, Tape overlay; Input: Keyboard JP/US, Swap Alt/Win keys, Arrow keys, Joystick, Diagonals, Button A-C. Model, Mode, Memory and PCG-8100 apply at
 Apply and reset; the rest at once.
 
 Keys (rtl/pc8001_kbd.sv): GRPH = left Alt; KANA (a lock) = right Alt, Caps Lock or the JP kana key; STOP = F9 or
-End; F6-F8 and F10 = SHIFT + F1-F3 and F5; Down / Left / Insert = SHIFT + Up / Right / DEL.
+End; F6-F8 and F10 = SHIFT + F1-F3 and F5; Down / Left / Insert = SHIFT + Up / Right / DEL. Arrow keys = Numpad 8/2/4/6:
+the arrows read as pad 8, 2, 4, 6 (games that move with the pad, on a keyboard without one).
 
 Joystick (rtl/pc8001_joy.sv): the machine had no joystick port, and its games read the keyboard, so with Joystick
 set to Numpad or Cursor keys the pad presses keys in the keyboard matrix (the keyboard still works alongside, and
@@ -96,8 +97,8 @@ one diagonal key (games differ). Cursor keys: Up and Right, with SHIFT for Down 
 SR's own Down / Left keys too). Fire keys differ from game to game, so Button A, B and C each pick one of Space,
 Return, SHIFT, Z, X, Numpad 0, Numpad 5 (defaults Space, Return, SHIFT). Start = Return, Select = Space,
 STOP = STOP. Auto by default; all of it acts at once. Auto: a known tape's own map (tools/tape_db.txt `joy:`, from
-the instruction screens in tools/joy_map.md: e.g. Door Door A = Space (jump), B = Z, C = X; Itasundorious diagonals 7-9-1-3; Kaeru
-Shooter A = Numpad 5), set when the tape is mounted; any other tape: Numpad with the OSD's Diagonals and buttons.
+the instruction screens in tools/joy_map.md: e.g. Door Door A = Space (jump), B = Z, C = X; Itasundorious and Kaeru
+Shooter diagonals 7-9-1-3), set when the tape is mounted; any other tape: Numpad with the OSD's Diagonals and buttons.
 On the SR its extra row (port 0Ah) also: Tab, Down, Left, HELP = F11, COPY = Print Screen, keypad - and /, CAPS
 (a lock) = SHIFT + Caps Lock.
 

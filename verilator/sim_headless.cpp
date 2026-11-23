@@ -63,6 +63,7 @@ struct Options {
     std::string sr_dir = "../refs/emulators/mame_roms/pc8001mk2sr";  // --sr-dir: n80_2sr.rom, n80_3.rom, font80sr.rom, kanji1.rom
     bool        v2 = false;               // --v2: the SR's N80SR mode
     bool        kbd_us = false;
+    bool        arrows_pad = false;                 // --arrows-pad: OSD Arrow keys = Numpad 8/2/4/6
     bool        overlay = false;          // --overlay: the tape overlay and next-step hint
     bool        hint_log = false;         // --hint-log: print the next-step hint each time it changes
     std::set<uint32_t> resets;            // --reset-at FRAME
@@ -107,6 +108,7 @@ static void usage()
 "  --sr                   PC-8001mkIISR (boot2.rom from --sr-dir DIR: n80_2sr.rom, n80_3.rom, font80sr.rom,\n"
 "                         kanji1.rom); --n-mode N mode, --v2 N80SR mode (else N80 mode)\n"
 "  --kbd-us               keyboard: US symbols (OSD Keyboard = US)\n"
+"  --arrows-pad           the arrow keys as pad 8 2 4 6 (OSD Arrow keys = Numpad 8/2/4/6)\n"
 "  --overlay              draw the tape overlay (status bar, next-step hint) as the core does\n"
 "  --hint-log             print the next-step hint each time it changes ([hint] frame N: TYPE ... <ret>)\n"
 "  --ext-rom FILE         expansion ROM at 6000h (OSD Expansion ROM)\n"
@@ -209,6 +211,7 @@ static bool parse_args(int argc, char **argv, Options &o)
         else if (a == "--n-mode") o.n_mode = true;
         else if (a == "--mk2-dir") o.mk2_dir = next();
         else if (a == "--kbd-us") o.kbd_us = true;
+        else if (a == "--arrows-pad") o.arrows_pad = true;
         else if (a == "--overlay") o.overlay = true;
         else if (a == "--hint-log") o.hint_log = true;
         else if (a == "--ext-rom") o.ext_rom = next();
@@ -650,6 +653,7 @@ int Sim::run()
     top->n_mode = opt.n_mode;
     top->v2 = opt.v2;
     top->kbd_us = opt.kbd_us;
+    top->arrows_pad = opt.arrows_pad;
     top->joy = 0;
     top->joy_cfg = opt.joy_cfg;
     top->overlay = opt.overlay;

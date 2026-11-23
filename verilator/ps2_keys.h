@@ -69,7 +69,7 @@ static bool ps2_from_name(const std::string &n, Ps2Key &k)
         {"F1",0x05,0,0},     {"F2",0x06,0,0},    {"F3",0x04,0,0},   {"F4",0x0C,0,0}, {"F5",0x03,0,0},
         {"TAB",0x0D,0,0},    {"CTRL",0x14,0,0},  {"SHIFT",0x12,0,0}, {"GRAPH",0x11,0,0}, {"CAPS",0x58,0,0},
         {"RALT",0x11,1,0},
-        {"F11",0x78,0,0},    {"PRTSC",0x7C,1,0}, {"KP_MINUS",0x7B,0,0}, {"KP_SLASH",0x4A,1,0},
+        {"F11",0x78,0,0},    {"PRTSC",0x7C,1,0}, {"KP_MINUS",0x7B,0,0}, {"KP_0",0x70,0,0}, {"KP_1",0x69,0,0}, {"KP_2",0x72,0,0}, {"KP_3",0x7A,0,0}, {"KP_4",0x6B,0,0}, {"KP_5",0x73,0,0}, {"KP_6",0x74,0,0}, {"KP_7",0x6C,0,0}, {"KP_8",0x75,0,0}, {"KP_9",0x7D,0,0}, {"KP_SLASH",0x4A,1,0},
     };
     for (auto &t : tab) {
         if (n == t.name) { k = {t.code, t.ext, t.shift}; return true; }

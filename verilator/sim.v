@@ -14,6 +14,7 @@ module top
    input         pcg_on,
    input  [64:0] rtc,
    input         kbd_us,
+   input         arrows_pad,   // --arrows-pad: OSD Arrow keys = Numpad 8/2/4/6
    input         overlay,      // --overlay: the tape overlay (status bar, next-step hint) as PC8001.sv draws it
 
    output [7:0]  VGA_R /*verilator public_flat*/,
@@ -93,7 +94,7 @@ pc8001 pc8001
 (
    .clk_sys(clk_sys),
    .reset(reset),
-   .model(model), .n_mode(n_mode), .v2(v2), .ram16k(ram16k), .pcg_on(pcg_on), .rtc(rtc), .kbd_us(kbd_us),
+   .model(model), .n_mode(n_mode), .v2(v2), .ram16k(ram16k), .pcg_on(pcg_on), .rtc(rtc), .kbd_us(kbd_us), .arrows_pad(arrows_pad),
    .ps2_key(ps2_key),
    .joy_keys(joy_keys),
    .tape_turbo(tape_turbo),

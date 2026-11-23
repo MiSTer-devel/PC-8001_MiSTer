@@ -7,6 +7,10 @@
 // The machine has one key for up/down, one for right/left and one for DEL/INS: Down, Left and Insert press
 // SHIFT with it. F6-F8 and F10 are SHIFT + F1-F3, F5 (as on the machine). STOP: F9 or End (not Pause: Main sends
 // no release for it, and its 77h, Num Lock's code, is left pressed).
+// arrows_pad (OSD Arrow keys = Numpad 8/2/4/6): the arrow keys read as pad 8, 2, 4, 6, not as the cursor keys
+// (PC88_MiSTer PR 279: many games move with the pad, many keyboards have none). The arrows are kept apart (arr)
+// and read into the cursor or the pad cells as the option says, so a change of it while an arrow is held leaves
+// no key down, and an arrow and the pad key it stands for can be held together.
 // KANA is a lock key (Caps Lock, right Alt or the JP kana key toggles it). GRPH: left Alt.
 // SR row 0Ah (CSCP key_table; FFh on the PC-8001 and mkII): 0 TAB (Tab), 1 down, 2 left (Down / Left, which also
 // press SHIFT + Up / Right as above), 3 HELP (F11; CSCP End, here STOP), 4 COPY (Print Screen; CSCP F12, here the
@@ -29,6 +33,7 @@ module pc8001_kbd
 	input             reset,
 	input      [10:0] ps2_key,
 	input             kbd_us,
+	input             arrows_pad,     // the arrow keys as pad 8 2 4 6
 	input             sr,             // the SR's row 0Ah
 	input      [87:0] joy_keys,       // rtl/pc8001_joy.sv: row r at bits 8r+7..8r, 1 = pressed
 	input       [3:0] row,
@@ -41,6 +46,7 @@ reg [6:0] m10 = 0;         // SR row 0Ah bits 0-6, 1 = pressed
 reg       caps = 0;        // SR CAPS lock (row 0Ah bit 7)
 reg       fshift = 0;      // SHIFT held for an F6-F10 / Down / Left / Insert key
 reg       old_stb = 0;
+reg [3:0] arr = 0;         // arrows held: up, down, left, right
 
 integer i;
 
@@ -167,10 +173,7 @@ always @(*) begin
 	9'h051: {r, b} = {4'd7, 3'd7};   // _ (JP ro key)
 	// 08
 	9'h16C: {r, b} = {4'd8, 3'd0};   // Home: CLR
-	9'h175: {r, b} = {4'd8, 3'd1};   // Up
-	9'h172: begin {r, b} = {4'd8, 3'd1}; sh = 1; end   // Down
-	9'h174: {r, b} = {4'd8, 3'd2};   // Right
-	9'h16B: begin {r, b} = {4'd8, 3'd2}; sh = 1; end   // Left
+	// Up, Down, Right, Left: arr (read below)
 	9'h066, 9'h171: {r, b} = {4'd8, 3'd3};   // Backspace, Delete: DEL
 	9'h170: begin {r, b} = {4'd8, 3'd3}; sh = 1; end   // Insert
 	9'h011: {r, b} = {4'd8, 3'd4};           // left Alt: GRPH
@@ -231,7 +234,14 @@ localparam OV_WAIT = 21'd1431818;  // 50 ms (3 frames) at 28.636 MHz: SHIFT sett
 localparam OV_HOLD = 21'd954545;   // 33 ms (2 frames): the shortest press
 wire       modkey = (r == 4'd8) && b[2];   // GRPH, KANA, SHIFT, CTRL
 assign     any_key = (|m[0]) | (|m[1]) | (|m[2]) | (|m[3]) | (|m[4]) | (|m[5]) | (|m[6]) | (|m[7]) |
-                     (|m[9]) | (|m[8][3:0]) | (|m10);
+                     (|m[9]) | (|m[8][3:0]) | (|m10) | (|arr);
+// the arrows' cells: the cursor keys (Down and Left with SHIFT; the SR's own down / left) or pad 8 2 4 6
+wire       acur = ~arrows_pad;
+wire [7:0] a_r0 = arrows_pad ? {1'b0, arr[0], 1'b0, arr[1], 1'b0, arr[2], 2'b00} : 8'h00;   // pad 6, 4, 2
+wire [7:0] a_r1 = {7'd0, arrows_pad & arr[3]};                                            // pad 8
+wire [4:0] a_r8 = acur ? {2'd0, arr[0] | arr[1], arr[3] | arr[2], 1'b0} : 5'd0;           // RIGHT, UP
+wire       a_sh = acur & (arr[1] | arr[2]);
+wire [6:0] a_10 = acur ? {4'd0, arr[1], arr[2], 1'b0} : 7'd0;
 
 always @(posedge clk) begin
 	old_stb <= ps2_key[10];
@@ -244,6 +254,7 @@ always @(posedge clk) begin
 		ov <= 0;
 		ov_key <= 0;
 		ov_cnt <= 0;
+		arr <= 0;
 	end
 	else begin
 	if (ov && ov_cnt != 0) begin
@@ -261,10 +272,15 @@ always @(posedge clk) begin
 		end
 	end
 	if (ev) begin
-		case ({ext, code})   // SR row 0Ah, beside the main map
+		case ({ext, code})   // the arrows
+		9'h175: arr[3] <= press;
+		9'h172: arr[2] <= press;
+		9'h16B: arr[1] <= press;
+		9'h174: arr[0] <= press;
+		default: ;
+		endcase
+		case ({ext, code})   // SR row 0Ah, beside the main map (down / left: a_10)
 		9'h00D: m10[0] <= press;   // Tab: TAB
-		9'h172: m10[1] <= press;   // Down
-		9'h16B: m10[2] <= press;   // Left
 		9'h078: m10[3] <= press;   // F11: HELP
 		9'h17C: m10[4] <= press;   // Print Screen: COPY
 		9'h07B: m10[5] <= press;   // pad -
@@ -309,8 +325,11 @@ end
 always @(*) begin
 	data = 8'hFF;
 	if (row <= 4'd9) data = ~(m[row] | joy_keys[8 * row +: 8]);
-	if (row == 4'd10 && sr) data = ~({caps, m10} | joy_keys[80 +: 8]);
-	if (row == 4'd8) data = ~({m[8][7], ov ? ov_sh : (pshift | fshift | imm_sh), m[8][5] | kana, m[8][4:0]} | joy_keys[64 +: 8]);
+	if (row == 4'd0) data = ~(m[0] | a_r0 | joy_keys[0 +: 8]);
+	if (row == 4'd1) data = ~(m[1] | a_r1 | joy_keys[8 +: 8]);
+	if (row == 4'd10 && sr) data = ~({caps, m10 | a_10} | joy_keys[80 +: 8]);
+	if (row == 4'd8) data = ~({m[8][7], ov ? ov_sh : (pshift | fshift | imm_sh | a_sh), m[8][5] | kana, m[8][4:0] | a_r8} |
+	                          joy_keys[64 +: 8]);
 end
 
 endmodule
