@@ -172,7 +172,7 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       a whole leader at every motor start. Sim: Mag Force title; Bakuso! 5000 Mile (CLOAD"RACE right after its
       machine code: the motor now stops in the leader, not 55 bytes into the header) and Yonin Mahjong (finds MAJ)
       load too; Arranger (mkII) now reaches its title and demo (was TAPE READ ERROR). Radar Snaky (MON L) still
-      hangs at "GPL is in process" with the motor on. Check on hardware.
+      hangs at "GPL is in process" with the motor on. Mister 192: Mag Force loads and plays (2026-11-23).
 - [x] Flicky and Champion Prowres Special (.t88, mk2) seemed stuck at "TAPE LOADER V2.2 / NOW LOADING": they load
       the whole tape themselves (Prowres' motor stops at frame 12806 in the sim) and then ask SELECT YOUR
       COMPUTER (tape_db play: 1), as in CSCP. joy_sim ended the load too early (motor off 900 frames; now 3000).
