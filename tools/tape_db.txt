@@ -472,10 +472,11 @@ tape: @Commercial/80/Flappy.t88
   0: CLOAD"flappy"\n
   1: RUN\n
 title: Flicky mk2
+joy: numpad diag space
 tape: @Commercial/80/Flicky.t88
   0: CLOAD"FLICKY"\n
   1: RUN\n
-play: {WAIT60}1
+play: {WAIT60}{KP_1}
 title: Geimu Kyojin no Uchu Ryoko mk2
 tape: @Commercial/80/Geimu Kyojin no Uchu Ryoko.t88
   0: CLOAD"IPL"\n

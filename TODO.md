@@ -176,10 +176,18 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
 - [x] Flicky and Champion Prowres Special (.t88, mk2) seemed stuck at "TAPE LOADER V2.2 / NOW LOADING": they load
       the whole tape themselves (Prowres' motor stops at frame 12806 in the sim) and then ask SELECT YOUR
       COMPUTER (tape_db play: 1), as in CSCP. joy_sim ended the load too early (motor off 900 frames; now 3000).
+- [x] Flicky on Mister 192 (2026-11-24): loads (about 20 min at 5x), and SELECT YOUR COMPUTER reads the keypad
+      only (top-row 1 is ignored here and in CSCP). A black screen after the menu was the test's own doing: with
+      OSD Diagonals = Two keys, pad down-left is keypad 2 + 4, so the game took <2> SR. tape_db: joy: numpad diag
+      space (down-left = keypad 1), play: {KP_1} (CSCP {V61}); with Diagonals Numpad 7-9-1-3 the title and round 1
+      play on hardware. joy_sim's 60000-frame cap is too short for its load (the menu comes at CSCP frame 84000).
+      Sim: --n80 is repeatable (a 64 KB snapshot from CSCP in three images: runs/flicky_snap).
 - [ ] OSD Joystick Auto in the sim (tools/joy_sim.py, runs/joysim_all/report.md, 2026-11-23): of 85 single-tape
       titles, about 50 react to directions and buttons. No reaction yet:
       Marine War (in game; scan: A D W K L N: letter keys the joy map cannot send), Tree (in game, keys unknown),
       Stack Invader (key screen, never starts), Kumo Vader, Hae Uchiotoshi, Rocket Bomb, Jack Tiger, Space Alien.
+      (2026-11-23: all but Marine War and Jack Tiger's buttons react after tape_db fixes; those two need keys the
+      Auto map cannot send. Flicky: see above.)
       (Octopus and the two Random Walker titles: F1 is KEY 1 = "mon" L "GC000", the BASIC loading its next
       block; joy_sim types such play: keys after the last step, and all three now react.)
 - [ ] Disk hints for the type-in pack: of 56 new disks, ~20 boot by themselves (raw loaders), most N-BASIC disks

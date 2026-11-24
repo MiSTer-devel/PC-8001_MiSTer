@@ -149,7 +149,7 @@ function automatic [73:0] db_tape(input [7:0] i);
 	8'd136: db_tape = {13'h0000, 20'd30477, 16'h49CC, 10'd293, 4'd1, 2'd1, 1'b0, 8'd0};   // Field Wars: @Commercial/80/Field Wars.cmt
 	8'd137: db_tape = {13'h140A, 20'd18957, 16'h48E3, 10'd294, 4'd1, 2'd1, 1'b0, 8'd0};   // Fireball: @Commercial/80/Fireball.cmt
 	8'd138: db_tape = {13'h0000, 20'd32368, 16'hA76B, 10'd295, 4'd2, 2'd1, 1'b0, 8'd0};   // Flappy: @Commercial/80/Flappy.t88
-	8'd139: db_tape = {13'h0000, 20'd46114, 16'h6796, 10'd297, 4'd2, 2'd1, 1'b0, 8'd0};   // Flicky: @Commercial/80/Flicky.t88
+	8'd139: db_tape = {13'h160A, 20'd46114, 16'h6796, 10'd297, 4'd2, 2'd1, 1'b0, 8'd0};   // Flicky: @Commercial/80/Flicky.t88
 	8'd140: db_tape = {13'h0000, 20'd65086, 16'hE4C5, 10'd299, 4'd2, 2'd1, 1'b0, 8'd0};   // Geimu Kyojin no Uchu Ryoko: @Commercial/80/Geimu Kyojin no Uchu Ryoko.t88
 	8'd141: db_tape = {13'h0000, 20'd24073, 16'h3A8C, 10'd301, 4'd1, 2'd1, 1'b0, 8'd0};   // Gunman: @Commercial/80/Gunman.t88
 	8'd142: db_tape = {13'h0000, 20'd26137, 16'h4D5D, 10'd302, 4'd1, 2'd1, 1'b0, 8'd0};   // Gyoza Panic: @Commercial/80/Gyoza Panic.cmt

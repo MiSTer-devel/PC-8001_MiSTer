@@ -320,7 +320,7 @@ def write_cscp(titles, out, font):
                         last = lines[-1]
             s.append('shot tape%d.png' % k)
         if t['play']:
-            s.append('frames 300'); s.append('type %s' % t['play'])
+            s.append('frames 300'); s.append('type %s' % re.sub(r'\{KP_(\d)\}', lambda m: '{V6%s}' % m.group(1), t['play']))   # CSCP: VK_NUMPADn
         if t.get('wait'):
             s.append('frames %d' % t['wait'])
         s += ['frames 300', 'shot a.png', 'frames 900', 'shot b.png', 'text b.txt']

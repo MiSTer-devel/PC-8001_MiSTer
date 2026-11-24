@@ -9,6 +9,7 @@
 // picture as the core outputs it, 640x200.
 
 #include <cstdio>
+#include <algorithm>
 #include <cstdlib>
 #include <cstdint>
 #include <string>
@@ -77,8 +78,7 @@ struct Options {
     std::multimap<uint32_t, std::string> tape_swaps;           // --swap-tape FRAME:FILE: mount a tape at FRAME
     std::map<uint32_t, std::string> tape_after;                // --tape-after-motor N:FILE: 10 frames after stop N
     std::string tape_file;                // --tape FILE: .cmt / .t88 through ioctl index 1 (.t88: 41h)
-    uint32_t    n80_frame = 0;            // --n80 FRAME:FILE: a .n80 memory image (OSD F3, ioctl index 3) at FRAME
-    std::string n80_file;
+    std::vector<std::pair<uint32_t, std::string>> n80s;   // --n80 FRAME:FILE (repeatable): a .n80 memory image (OSD F3, ioctl index 3) at FRAME
     bool        tape_turbo = false;       // --tape-turbo: OSD Tape speed 5x
     std::vector<std::string> after_motor; // --after-motor TEXT: typed 20 frames after each motor stop
     uint32_t    tape_end_stop = 0;        // --stop-after-motor N: end when the motor has stayed off N frames
@@ -133,7 +133,7 @@ static void usage()
 "  --tape FILE            load a .cmt / .t88 tape image (OSD Tape); --tape-turbo: OSD Tape speed 5x\n"
 "  --swap-tape F:FILE     mount another tape at frame F, as choosing it in OSD Tape (repeatable)\n"
 "  --tape-after-motor N:FILE  mount FILE 10 frames after the tape motor's N-th stop (1 = first; repeatable)\n"
-"  --n80 FRAME:FILE       load a .n80 memory image at FRAME (OSD Memory Image): it starts at once\n"
+"  --n80 FRAME:FILE       load a .n80 memory image at FRAME (OSD Memory Image): it starts at once; repeatable\n"
 "  --after-motor TEXT     type TEXT 20 frames after the tape motor stops (repeatable: one per stop, in order)\n"
 "  --stop-after-motor N   stop once the motor has stopped (after every --after-motor text) and stayed off\n"
 "                         N frames; prints a TAPE line\n"
@@ -227,7 +227,7 @@ static bool parse_args(int argc, char **argv, Options &o)
             std::string v = next();
             size_t c = v.find(':');
             if (c == std::string::npos) { fprintf(stderr, "--n80 FRAME:FILE\n"); exit(2); }
-            o.n80_frame = parse_num(v.substr(0, c)); o.n80_file = v.substr(c + 1);
+            o.n80s.push_back({parse_num(v.substr(0, c)), v.substr(c + 1)});
         }
         else if (a == "--disk") { o.disk_file[0] = next(); o.disk_unit = true; }
         else if (a == "--disk2") { o.disk_file[1] = next(); o.disk_unit = true; }
@@ -733,8 +733,13 @@ int Sim::run()
     auto range = ps2_schedule.equal_range(frame);
     for (auto it = range.first; it != range.second; ++it) ps2_queue.push_back(it->second);
 
-    std::vector<uint8_t> n80;
-    if (!opt.n80_file.empty() && !read_file(opt.n80_file, n80)) { fprintf(stderr, "cannot read %s\n", opt.n80_file.c_str()); return 2; }
+    std::vector<std::pair<uint32_t, std::vector<uint8_t>>> n80s;
+    for (auto &n : opt.n80s) {
+        std::vector<uint8_t> b;
+        if (!read_file(n.second, b)) { fprintf(stderr, "cannot read %s\n", n.second.c_str()); return 2; }
+        n80s.push_back({n.first, b});
+    }
+    std::sort(n80s.begin(), n80s.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
     tswaps = opt.tape_swaps;
     while (frame <= opt.stop_frame && !done && !Verilated::gotFinish()) {
         clock();
@@ -756,10 +761,10 @@ int Sim::run()
             ioctl_load(0, t, ext == "t88" ? 0x41 : ext == "cas" ? 0x81 : 0x01);
             if (!opt.quiet) fprintf(stderr, "[sim] frame %u: tape '%s' mounted, %zu bytes\n", frame, f.c_str(), t.size());
         }
-        if (!n80.empty() && frame >= opt.n80_frame) {
-            ioctl_load(0, n80, 3);
-            if (!opt.quiet) fprintf(stderr, "[sim] memory image: '%s', %zu bytes at frame %u\n", opt.n80_file.c_str(), n80.size(), frame);
-            n80.clear();
+        if (!n80s.empty() && frame >= n80s.front().first) {
+            ioctl_load(0, n80s.front().second, 3);
+            if (!opt.quiet) fprintf(stderr, "[sim] memory image: %zu bytes at frame %u\n", n80s.front().second.size(), frame);
+            n80s.erase(n80s.begin());
         }
     }
     if (opt.tape_end_stop) {
