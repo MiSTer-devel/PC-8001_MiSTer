@@ -380,7 +380,7 @@ title: Hae Uchiotoshi Game (Programme Pochette) mk2
 tape: Hae Uchiotoshi Game (Programme Pochette).t88
   0: CLOAD"HAE"\n
   1: RUN\n
-play: {WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n
+play: {WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n
 title: Irregular and Regular Verbs (Tatsuya Suzuki) mk2
 tape: Irregular and Regular Verbs (Tatsuya Suzuki).cas
   0: CLOAD"VERB"\n
