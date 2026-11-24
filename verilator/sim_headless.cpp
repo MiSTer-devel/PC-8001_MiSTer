@@ -115,7 +115,7 @@ static void usage()
 "  --hint-log             print the next-step hint each time it changes ([hint] frame N: TYPE ... <ret>)\n"
 "  --ext-rom FILE         expansion ROM at 6000h (OSD Expansion ROM)\n"
 "  --printer FILE         write the bytes sent to the printer to FILE\n"
-"  --type FRAME:TEXT      type TEXT from FRAME; \\n or {RETURN}, {WAITn}, {CTRL+B} ...\n"
+"  --type FRAME:TEXT      type TEXT from FRAME; \\n or {RETURN}, {WAITn}, {HOLDn} (keys held n frames), {CTRL+B} ...\n"
 "  --type-rate P:R        frames per key press:release (default 4:4)\n"
 "  --reset-at F           reset before frame F\n"
 "  --screenshot N         PNG of frame N (repeatable); --dump-every K: every Kth frame\n"
@@ -597,6 +597,7 @@ void Sim::write_png(uint32_t f)
 
 void Sim::schedule_text(uint32_t f, const std::string &s)
 {
+    uint32_t press = opt.type_press;   // {HOLDn}: the keys after it held n frames
     for (size_t i = 0; i < s.size(); i++) {
         Ps2Key k;
         bool ctrl = false;
@@ -610,6 +611,7 @@ void Sim::schedule_text(uint32_t f, const std::string &s)
             std::string name = s.substr(i + 1, e - i - 1);
             i = e;
             if (name.rfind("WAIT", 0) == 0) { f += parse_num(name.substr(4)); continue; }
+            if (name.rfind("HOLD", 0) == 0) { press = parse_num(name.substr(4)); continue; }
             if (name.rfind("CTRL+", 0) == 0 && name.size() == 6) {
                 // {CTRL+B}: CTRL held a frame before the key until a frame after (the monitor's Ctrl+B)
                 ok = ps2_from_ascii((char)tolower(name[5]), k);
@@ -626,13 +628,13 @@ void Sim::schedule_text(uint32_t f, const std::string &s)
         // BIOS can scan the key's row before it sees SHIFT (in 80 columns the CPU gets fewer cycles).
         if (k.shift) ps2_schedule.insert({f ? f - 1 : 0, {PS2_LSHIFT, false, true}});
         ps2_schedule.insert({f, {k.code, k.extended, true}});
-        ps2_schedule.insert({f + opt.type_press, {k.code, k.extended, false}});
-        if (k.shift) ps2_schedule.insert({f + opt.type_press + 1, {PS2_LSHIFT, false, false}});
+        ps2_schedule.insert({f + press, {k.code, k.extended, false}});
+        if (k.shift) ps2_schedule.insert({f + press + 1, {PS2_LSHIFT, false, false}});
         if (ctrl) {
             ps2_schedule.insert({f ? f - 1 : 0, {PS2_LCTRL, false, true}});
-            ps2_schedule.insert({f + opt.type_press + 1, {PS2_LCTRL, false, false}});
+            ps2_schedule.insert({f + press + 1, {PS2_LCTRL, false, false}});
         }
-        f += opt.type_press + opt.type_release;
+        f += press + opt.type_release;
     }
 }
 

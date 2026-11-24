@@ -114,6 +114,7 @@ title: Space Alien (MyComp BASIC) mk2
 tape: Space Alien (MyComp BASIC).t88
   1: MON\n L\n
   2: {CTRL}B RUN\n
+play: {WAIT60}\n{WAIT900}
 title: Punch! Punch! (MyComp BASIC)
 tape: Punch! Punch! (MyComp BASIC).t88
   1: MON\n L\n
@@ -130,6 +131,7 @@ title: Rocket Bomb (Konputa)
 tape: Rocket Bomb (Konputa).t88
   1: MON\n L\n
   2: {CTRL}B RUN\n
+play: {WAIT150}\n{WAIT150}\n{WAIT150}\n{WAIT150}\n{WAIT150}\n{WAIT150}\n{WAIT150}\n{WAIT150}\n{WAIT900}
 title: PCG Digital Invader pcg
 tape: PCG Digital Invader.CMT
   1: MON\n L\n
@@ -155,13 +157,17 @@ tape: Random Walker Fireman (PC Game Kessaku Senshu).t88
 play: {WAIT600}{F1}
 title: Kumo Vader (MyComp BASIC)
 tape: Kumo Vader (MyComp BASIC).cmt
-  1: RUN\n
+  1: MON\n L\n
+  2: {CTRL}B RUN\n
 title: Stack Invader (MyComp BASIC)
 tape: Stack Invader (MyComp BASIC).cmt
-  1: RUN\n
+  1: MON\n L\n
+  2: {CTRL}B RUN\n
 title: Jack Tiger (IO)
 tape: Jack Tigher (IO).cmt
-  1: RUN\n
+  1: MON\n L\n
+  2: {CTRL}B RUN\n
+play: {WAIT60}\n{WAIT300} {WAIT120}{HOLD30}{F3}{WAIT30}{F3}{WAIT30}{F3}{WAIT30}{F3}{WAIT30}{F3}{WAIT30}{F3}{WAIT30}{F3}{WAIT30}{F3}{WAIT30}{F3}{WAIT30}{F3}{WAIT30}{F3}{WAIT30}{F3}{WAIT30}{F3}{WAIT30}{F3}{WAIT30}{F3}{WAIT30}{F3}{WAIT30}{F3}{WAIT30}{F3}{WAIT30}{HOLD4}{WAIT120}
 title: PCG-Jong pcg
 tape: PCG-Jong.cmt
   1: RUN\n
@@ -374,6 +380,7 @@ title: Hae Uchiotoshi Game (Programme Pochette) mk2
 tape: Hae Uchiotoshi Game (Programme Pochette).t88
   0: CLOAD"HAE"\n
   1: RUN\n
+play: {WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n{WAIT300}\n
 title: Irregular and Regular Verbs (Tatsuya Suzuki) mk2
 tape: Irregular and Regular Verbs (Tatsuya Suzuki).cas
   0: CLOAD"VERB"\n
@@ -386,7 +393,7 @@ title: Tree (Shintaro Ogawa) mk2
 tape: Tree (Shintaro Ogawa).t88
   0: CLOAD"TREE"\n
   1: RUN\n
-play: {WAIT60}S
+play: {WAIT60}S{WAIT1800}
 title: GuGuGanmo Yakitori Panic mk2
 tape: GuGuGanmo Yakitori Panic.t88
   0: MON\n L\n
