@@ -188,6 +188,11 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
       Stack Invader (key screen, never starts), Kumo Vader, Hae Uchiotoshi, Rocket Bomb, Jack Tiger, Space Alien.
       (2026-11-23: all but Marine War and Jack Tiger's buttons react after tape_db fixes; those two need keys the
       Auto map cannot send. Flicky: see above.)
+      (2026-11-24: the Auto map's button keys are 4 bits (tape database only: K, L, keypad 9, Q, S, keypad +), and
+      its mode 3 is Letters (W up, X down, A left, D right). Marine War: joy: letters k l return (its notes: W A X D
+      move, K L torpedoes, RETURN starts). Jack Tiger: joy: numpad pad9 pad+ pad5 (its help screen: Q,S or 9,+ on
+      the keypad = missile control). On Mister 192 the pad types exactly those keys at BASIC; Jack Tiger plays
+      (A = keypad 9 fires, the score goes up). Marine War starts with C (Return held about 1 s in the intro).)
       (Octopus and the two Random Walker titles: F1 is KEY 1 = "mon" L "GC000", the BASIC loading its next
       block; joy_sim types such play: keys after the last step, and all three now react.)
 - [ ] Disk hints for the type-in pack: of 56 new disks, ~20 boot by themselves (raw loaders), most N-BASIC disks

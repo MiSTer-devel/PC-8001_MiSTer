@@ -72,6 +72,7 @@ title: Drive My PC (Popcom)
 tape: Drive My PC (Popcom).t88
   1: GD300\n
 title: Marine War (PiO)
+joy: letters k l return
 tape: Marine War (Bugfixed) (PiO).t88
   1: GE518\n
 play: {WAIT60}N
@@ -164,6 +165,7 @@ tape: Stack Invader (MyComp BASIC).cmt
   1: MON\n L\n
   2: {CTRL}B RUN\n
 title: Jack Tiger (IO)
+joy: numpad pad9 pad+ pad5
 tape: Jack Tigher (IO).cmt
   1: MON\n L\n
   2: {CTRL}B RUN\n

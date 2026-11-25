@@ -155,7 +155,7 @@ wire  [1:0] disk_ready, disk_too_big;
 
 wire   [1:0] hint_machine;
 wire         hint_machine_v;
-wire  [12:0] hint_joy;         // the known tape's Joystick Auto map
+wire  [15:0] hint_joy;         // the known tape's Joystick Auto map
 
 // A known tape that needs the mkII (tools/tape_db.txt mk2: N80 mode, mk2n: Mode N) while the machine runs
 // something else: the OSD's Model (the mkII, or the SR kept) and Mode are set through hps_io, and once the

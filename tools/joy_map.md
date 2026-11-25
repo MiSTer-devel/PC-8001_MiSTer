@@ -79,9 +79,9 @@ BASIC type-ins read INKEY$ (no port reads to scan); most use 2 4 6 8 and Space (
 | Ghost Land (PiO) | Numpad | SPC RET | S Q | scan |
 | Hander (PiO) | Numpad | ? |  | scan |
 | Haunted Cave (Mycomp) | Numpad | RET SPC p0 |  | scan |
-| Jack Tigher (IO) | Numpad (+p1) | p0 | F1 P | scan |
+| Jack Tigher (IO) | Numpad | p9 p+ p5 (Q S) | F1 F2 F3 | tape_db |
 | Kumo Vader (MyComp BASIC) | Numpad | ? |  | scan |
-| Marine War (Bugfixed) (PiO) | Numpad | RET X SPC | A D W K L N Y | scan |
+| Marine War (Bugfixed) (PiO) | Letters (W A X D) | K L RET | N Y | tape_db |
 | Mikawashima Alien (PiO) | Numpad | SPC |  | scan |
 | Monster House (Konputa) (I-O) | Numpad | SPC |  | scan |
 | Multifighter (Popcom) | Numpad | ? |  | scan |

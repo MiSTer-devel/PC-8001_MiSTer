@@ -83,7 +83,7 @@ assign AUDIO_L = audio;
 assign AUDIO_R = audio;
 
 wire [87:0] joy_keys;
-wire [12:0] hint_joy;
+wire [15:0] hint_joy;
 pc8001_joy joy_map
 (
    .joy(joy), .mode(joy_cfg[1:0]), .diag(joy_cfg[2]), .a(joy_cfg[5:3]), .b(joy_cfg[8:6]), .c(joy_cfg[11:9]), .auto_map(hint_joy),

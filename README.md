@@ -99,6 +99,8 @@ Return, SHIFT, Z, X, Numpad 0, Numpad 5 (defaults Space, Return, SHIFT). Start =
 STOP = STOP. Auto by default; all of it acts at once. Auto: a known tape's own map (tools/tape_db.txt `joy:`, from
 the instruction screens in tools/joy_map.md: e.g. Door Door A = Space (jump), B = Z, C = X; Itasundorious and Kaeru
 Shooter diagonals 7-9-1-3), set when the tape is mounted; any other tape: Numpad with the OSD's Diagonals and buttons.
+The tape database can also give letter-key directions (W / A / D / X: Marine War) and the buttons K, L, Numpad 9,
+Q, S or Numpad + (Marine War K / L, Jack Tiger keypad 9 / +), which the OSD rows do not list.
 On the SR its extra row (port 0Ah) also: Tab, Down, Left, HELP = F11, COPY = Print Screen, keypad - and /, CAPS
 (a lock) = SHIFT + Caps Lock.
 
