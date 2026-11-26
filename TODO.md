@@ -152,6 +152,10 @@ Reference: CSCP (tools/cscp_cmp.sh NAME FRAME 'TEXT': types into the sim and CSC
 - [x] Tester zip 20261118: testers/PC8001_tester_20261118.zip (125fa0a rbf = releases/PC8001_20261118.rbf: mkII
       switch, NEEDS A PC-8801; README: the mkII list, PC-8801 TAPES write-up for Danjuro). Not in git. On Mister
       11 (10.0.2.11, the user's keyboard and display) 2026-11-18: the mkII switch works ("much better").
+- [x] Release 20261125: releases/PC8001_20261125.rbf (63e582a; on Mister 192, same md5) and tester zip
+      testers/PC8001_tester_20261125.zip (not in git; README: JOYSTICK section, Arrow keys, NEW IN THIS BUILD
+      for the 22 commits since 125fa0a: OSD Joystick Auto with 19 game maps, two-tape MOUNT hints, .cmt leader
+      fix, tape turbo fix, drives not remembered).
 - [x] Two-tape titles (user on Mister 11, 2026-11-18: no hint to change tapes): the first tape's last line is
       MOUNT NEXT TAPE (tape_db.py appends a message step, events 7: no TYPE, not removed by keys); the second
       tape mounted after anything but its first tape (or first since power-on) shows MOUNT THE FIRST TAPE
